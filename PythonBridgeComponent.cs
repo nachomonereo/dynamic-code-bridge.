@@ -37,7 +37,7 @@ namespace DynamicCodeBridge
             _lastCode = @"# r: numpy
 # !python3
 # ===========================================================================
-# 🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.3.4
+# 🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.4.0
 # Developed by Nacho Monereo | IAAC
 # ===========================================================================
 #
