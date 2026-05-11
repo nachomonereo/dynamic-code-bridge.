@@ -267,7 +267,7 @@ Result = rg.Sphere(rg.Point3d.Origin, Inputs.get('Radius', 1.0))
                         
                         DA.SetDataList(0, report);
 
-                        // Dynamic Outputs: Retrieve from Python scope
+                        // Dynamic Outputs: Retrieve from Python scope (RunContext)
                         for (int i = 1; i < Params.Output.Count; i++) {
                             string outName = Params.Output[i].Name;
                             if (ctx.Outputs.TryGet(outName, out object val)) {
@@ -278,6 +278,8 @@ Result = rg.Sphere(rg.Point3d.Origin, Inputs.get('Radius', 1.0))
                                 }
                             }
                         }
+
+                        if (!_isInternalized) ReportStatus("SUCCESS", "Ready", _currentPath);
                     } catch (Exception ex) {
                         _statusText = "EXECUTION ERROR";
                         var errorReport = new List<object> {
@@ -285,35 +287,14 @@ Result = rg.Sphere(rg.Point3d.Origin, Inputs.get('Radius', 1.0))
                             "Check your log file for full stack trace."
                         };
                         DA.SetDataList(0, errorReport);
+                        if (!_isInternalized) ReportStatus("ERROR", ex.Message, _currentPath);
                     }
-
-                    // Dynamic Outputs
-                    for (int i = 1; i < Params.Output.Count; i++) {
-                        var param = Params.Output[i];
-                        try {
-                            var val = py.GetVariable(param.Name);
-                            if (val != null) {
-                                if (val is IEnumerable && !(val is string)) DA.SetDataList(i, (IEnumerable)val);
-                                else DA.SetData(i, val);
-                            }
-                        } catch { }
-                    }
-
-                    if (!_isInternalized) ReportStatus("SUCCESS", "Ready", _currentPath);
                 }
             }
             catch (Exception ex) 
             {
-                _statusText = "PYTHON ERROR";
-                var errReport = new List<string> {
-                    "ERROR: " + ex.Message,
-                    "Link: " + (_isInternalized ? "STANDALONE" : _currentPath),
-                    "Sync: " + DateTime.Now.ToLongTimeString(),
-                    "Log: " + GetLogContent(),
-                    "Code: " + _lastCode
-                };
-                DA.SetDataList(0, errReport);
-                if (!_isInternalized) ReportStatus("ERROR", ex.Message, _currentPath);
+                _statusText = "FATAL ERROR";
+                ReportStatus("CRITICAL", ex.Message, _currentPath);
             }
         }
 

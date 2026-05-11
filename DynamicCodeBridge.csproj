@@ -10,7 +10,7 @@
   </PropertyGroup>
   
   <PropertyGroup>
-    <Version>1.1.0</Version>
+    <Version>1.1.2</Version>
     <Title>Dynamic Code Bridge</Title>
     <Company>Nacho Monereo IAAC</Company>
     <Authors>Nacho Monereo IAAC</Authors>
