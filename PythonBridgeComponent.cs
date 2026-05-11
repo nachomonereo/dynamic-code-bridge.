@@ -15,6 +15,9 @@ using Grasshopper.GUI.Canvas;
 using GH_IO.Serialization;
 using Rhino.Geometry;
 using System.Drawing.Imaging;
+using Rhino.Runtime.Code;
+using Rhino.Runtime.Code.Execution;
+using Rhino.Runtime.Code.Languages;
 
 namespace DynamicCodeBridge
 {
@@ -234,22 +237,28 @@ Result = rg.Sphere(rg.Point3d.Origin, Inputs.get('Radius', 1.0))
                         inputs[Params.Input[i].Name] = val;
                     }
 
-                    // PYTHON EXECUTION (RHINO 8 COMPATIBLE SCOPE)
-                    var py = Rhino.Runtime.PythonScript.Create();
-                    
-                    // Inject inputs as Global Variables for ultra-fast access
-                    foreach (var kvp in inputs) {
-                        try { py.SetVariable(kvp.Key, kvp.Value); } catch { }
-                    }
-                    py.SetVariable("Inputs", inputs);
-                    
+                    // PYTHON 3 EXECUTION (RHINO 8 CPYTHON ENGINE)
                     try {
-                        var result = py.ExecuteScript(_lastCode);
+                        var language = RhinoCode.Languages.QueryLatest(new LanguageSpec("mcneel.pythonnet.python"));
+                        if (language == null) {
+                            DA.SetDataList(0, new List<object> { "[ERROR] Python 3 engine not initialized. Open the Rhino Script Editor once." });
+                            return;
+                        }
+
+                        var script = language.CreateCode(_lastCode);
+                        var ctx = new RunContext();
+                        
+                        // Inject variables into script scope
+                        foreach (var kvp in inputs) {
+                            ctx.Inputs[kvp.Key] = kvp.Value;
+                        }
+                        ctx.Inputs["Inputs"] = inputs;
+
+                        script.Run(ctx);
                         
                         // Consolidated Output (OUT)
                         var report = new List<object>();
-                        if (result != null) report.Add(result);
-                        report.Add("Status: OK");
+                        report.Add("Status: OK (Python 3)");
                         report.Add("Link: " + (_isInternalized ? "STANDALONE" : _currentPath));
                         report.Add("Sync: " + DateTime.Now.ToLongTimeString());
 
@@ -257,11 +266,22 @@ Result = rg.Sphere(rg.Point3d.Origin, Inputs.get('Radius', 1.0))
                         if (!string.IsNullOrEmpty(logContent)) report.Add("Log: " + logContent);
                         
                         DA.SetDataList(0, report);
+
+                        // Dynamic Outputs: Retrieve from Python scope
+                        for (int i = 1; i < Params.Output.Count; i++) {
+                            string outName = Params.Output[i].Name;
+                            if (ctx.Outputs.TryGet(outName, out object val)) {
+                                if (val is IEnumerable list && !(val is string)) {
+                                    DA.SetDataList(i, list);
+                                } else {
+                                    DA.SetData(i, val);
+                                }
+                            }
+                        }
                     } catch (Exception ex) {
                         _statusText = "EXECUTION ERROR";
                         var errorReport = new List<object> {
-                            "[PYTHON ERROR] " + ex.Message,
-                            "Context: " + Path.GetFileName(_currentPath),
+                            "[PYTHON 3 ERROR] " + ex.Message,
                             "Check your log file for full stack trace."
                         };
                         DA.SetDataList(0, errorReport);
