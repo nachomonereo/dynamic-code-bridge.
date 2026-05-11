@@ -1,42 +1,43 @@
-# ! python3
 # r: numpy
+# !python3
 
-# IN: XCount, YCount, Amplitude, Frequency
-# OUT: TerrainPoints, Wireframe
+# IN: SetA, SetB
+# OUT: Intersections, Status
 
 import Rhino.Geometry as rg
-import numpy as np
 
-# 1. Inputs with defaults safely handled
-nx = int(Inputs.get('XCount', 20)) if Inputs.get('XCount') is not None else 20
-ny = int(Inputs.get('YCount', 20)) if Inputs.get('YCount') is not None else 20
-amp = float(Inputs.get('Amplitude', 5.0)) if Inputs.get('Amplitude') is not None else 5.0
-freq = float(Inputs.get('Frequency', 0.2)) if Inputs.get('Frequency') is not None else 0.2
+# 1. COMPATIBILITY LAYER
+Inputs = dict(Inputs)
 
-# 2. Logic using Numpy
-x = np.linspace(0, 50, nx)
-y = np.linspace(0, 50, ny)
-X, Y = np.meshgrid(x, y)
-Z = amp * np.sin(freq * X) * np.cos(freq * Y)
+try:
+    # 2. DATA RECOVERY
+    # Validamos que lo que entra sean listas de curvas
+    list_a = Inputs.get('SetA')
+    list_b = Inputs.get('SetB')
+    
+    if not isinstance(list_a, list): list_a = [list_a] if list_a else []
+    if not isinstance(list_b, list): list_b = [list_b] if list_b else []
 
-# 3. Geometry Generation
-TerrainPoints = []
-Wireframe = []
+    pts = []
+    
+    # 3. LOGIC: Doble bucle de intersección
+    for crv_a in list_a:
+        if not isinstance(crv_a, rg.Curve): continue
+        for crv_b in list_b:
+            if not isinstance(crv_b, rg.Curve): continue
+            
+            # Buscamos puntos de cruce
+            events = rg.Intersect.Intersection.CurveCurve(crv_a, crv_b, 0.01, 0.01)
+            if events:
+                for ev in events:
+                    pts.Add(ev.PointA)
 
-for i in range(ny):
-    row_pts = []
-    for j in range(nx):
-        p = rg.Point3d(X[i,j], Y[i,j], Z[i,j])
-        TerrainPoints.append(p)
-        row_pts.append(p)
-    if len(row_pts) > 1:
-        Wireframe.append(rg.PolylineCurve(row_pts))
+    Intersections = pts
+    Status = "Found {0} intersection points.".format(len(pts))
 
-# Vertical lines for wireframe
-for j in range(nx):
-    col_pts = [rg.Point3d(X[i,j], Y[i,j], Z[i,j]) for i in range(ny)]
-    if len(col_pts) > 1:
-        Wireframe.append(rg.PolylineCurve(col_pts))
+except Exception as e:
+    # Diagnostic Log will capture this
+    raise e
 
-print("Python 3 Bridge: Terrain generated successfully.")
-"Engine: CPython 3.10"
+print(Status)
+"Status: Ready"

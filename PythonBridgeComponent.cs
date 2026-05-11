@@ -31,40 +31,69 @@ namespace DynamicCodeBridge
 
         public DynamicPythonBridgeComponent()
           : base("Dynamic Python Bridge", "PyBridge",
-              "A real-time Python link for Rhino 8 CPython with AI Auto-Debugging.",
+              "A real-time Python link for Rhino 8 CPython with Diagnostic Logs.",
               "IAAC", "CodeBridge")
         {
-            _lastCode = @"# 🌮 DYNAMIC PYTHON BRIDGE - MASTER MANUAL v4.2
+            _lastCode = @"# r: numpy
+# !python3
 # ===========================================================================
-# INSTRUCTIONS:
-# 1. LINK: Connect this file path to the 'P' input of the Bridge component.
-# 2. SYNC: Save this file (Ctrl+S) and Grasshopper updates instantly.
-# 3. LIBRARIES: Use '# r: library_name' to auto-install external dependencies.
-#    Example: 
-#    # r: numpy
-#    # r: pandas
+# 🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.3.4
+# Developed by Nacho Monereo | IAAC
+# ===========================================================================
 #
-# [ COPY-PASTE THIS SYSTEM PROMPT TO YOUR AI ASSISTANT ]
+# 📖 INSTRUCTIONS:
+# 1. LINK: Connect this file path to the 'P' input of the Bridge component.
+# 2. SYNC: Save (Ctrl+S) in your editor and Grasshopper updates instantly.
+# 3. LIBRARIES: Add '# r: library_name' at the very top to auto-install.
+# 4. AUTO-DEBUGGING: If an error occurs, the Bridge generates a '.log' file. 
+#    PROVIDE THIS LOG TO YOUR AI (ChatGPT/Gemini). It contains the stack trace 
+#    and variable states needed to fix the code automatically.
+#
+# 🤖 [ AI SYSTEM PROMPT - COPY & PASTE TO CHATGPT/GEMINI ]
 # ---------------------------------------------------------------------------
 # ""You are an expert Rhino/Grasshopper Python Developer. I am using the 
-# 'Dynamic Code Bridge' for Rhino 8 (CPython).
+# 'Dynamic Code Bridge' for Rhino 8 (CPython). 
 # 
-# RULES FOR GENERATING CODE:
-# 1. PARAMETERS: Start with tags: # IN: Name or # OUT: Name.
-# 2. DEPENDENCIES: If you need external libraries, add '# r: name' tags at the top.
-# 3. DATA ACCESS: Use the 'Inputs' dictionary or direct variable names.
-# 4. OUTPUTS: Assign results to variables matching your # OUT tags.
-# ""
+# MANDATORY RULES FOR GENERATING CODE:
+# 1. HEADERS: Use '# r: library' on Line 1 for dependencies.
+# 2. TAGS: Use '# IN: Name1, Name2' and '# OUT: Name1, Name2' to sync pins.
+# 3. COMPATIBILITY: Always start with 'Inputs = dict(Inputs)'.
+# 4. DATA ACCESS: Use 'val.Value if hasattr(val, ""Value"") else val' for numbers.
+# 5. LISTS: Always validate if an input is a list before iterating.
+# 6. OUTPUTS: Assign results to variables matching your # OUT tags.""
 # ---------------------------------------------------------------------------
 
 # IN: Radius
-# OUT: Result
+# OUT: MySphere
 
 import Rhino.Geometry as rg
 
-# Logic:
-print('Python Bridge Active')
-Result = rg.Sphere(rg.Point3d.Origin, Inputs.get('Radius', 1.0))
+# 1. COMPATIBILITY LAYER
+# We convert the .NET dictionary to a native Python dict.
+Inputs = dict(Inputs)
+
+def get_num(key, default):
+    val = Inputs.get(key)
+    if val is None: return default
+    # Extract the .Value from Grasshopper types (GH_Number, GH_Integer)
+    return val.Value if hasattr(val, 'Value') else val
+
+try:
+    # 2. INPUT RECOVERY
+    # Pattern: get_num('PinName', defaultValue)
+    r = float(get_num('Radius', 1.0))
+
+    # 3. GEOMETRY LOGIC
+    # Your parametric logic goes here.
+    MySphere = rg.Sphere(rg.Point3d.Origin, max(0.1, r))
+
+    # 4. STATUS REPORT
+    print('Python Bridge Ready | Sphere Radius: {0:.2f}'.format(r))
+    'Status: OK'
+
+except Exception as e:
+    # Diagnostic Log will capture the full StackTrace and Input Snapshot.
+    raise e
 ";
         }
 
@@ -218,83 +247,65 @@ Result = rg.Sphere(rg.Point3d.Origin, Inputs.get('Radius', 1.0))
 
                 if (SyncParameters(_lastCode)) {
                     this.OnAttributesChanged();
-                    var doc = OnPingDocument();
-                    if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(false));
+                    var d = OnPingDocument();
+                    if (d != null) d.ScheduleSolution(5, x => this.ExpireSolution(false));
                     return;
                 }
 
-                if (!string.IsNullOrEmpty(_lastCode))
-                {
-                    var inputs = new Dictionary<string, object>();
-                    int dynInStart = (_isInternalized || Params.Input.Count == 0 || Params.Input[0].Name != "File Path") ? 0 : 1;
-
-                    for (int i = dynInStart; i < Params.Input.Count; i++) {
-                        object val = null;
-                        try {
-                            DA.GetData(i, ref val);
-                            if (val is Grasshopper.Kernel.Types.IGH_Goo goo) val = goo.ScriptVariable();
-                        } catch { }
-                        inputs[Params.Input[i].Name] = val;
-                    }
-
-                    // PYTHON 3 EXECUTION (RHINO 8 CPYTHON ENGINE)
-                    try {
-                        var language = RhinoCode.Languages.QueryLatest(new LanguageSpec("mcneel.pythonnet.python"));
-                        if (language == null) {
-                            DA.SetDataList(0, new List<object> { "[ERROR] Python 3 engine not initialized. Open the Rhino Script Editor once." });
-                            return;
-                        }
-
-                        var script = language.CreateCode(_lastCode);
-                        var ctx = new RunContext();
-                        
-                        // Inject variables into script scope
-                        foreach (var kvp in inputs) {
-                            ctx.Inputs[kvp.Key] = kvp.Value;
-                        }
-                        ctx.Inputs["Inputs"] = inputs;
-
-                        script.Run(ctx);
-                        
-                        // Consolidated Output (OUT)
-                        var report = new List<object>();
-                        report.Add("Status: OK (Python 3)");
-                        report.Add("Link: " + (_isInternalized ? "STANDALONE" : _currentPath));
-                        report.Add("Sync: " + DateTime.Now.ToLongTimeString());
-
-                        string logContent = GetLogContent();
-                        if (!string.IsNullOrEmpty(logContent)) report.Add("Log: " + logContent);
-                        
-                        DA.SetDataList(0, report);
-
-                        // Dynamic Outputs: Retrieve from Python scope (RunContext)
-                        for (int i = 1; i < Params.Output.Count; i++) {
-                            string outName = Params.Output[i].Name;
-                            if (ctx.Outputs.TryGet(outName, out object val)) {
-                                if (val is IEnumerable list && !(val is string)) {
-                                    DA.SetDataList(i, list);
-                                } else {
-                                    DA.SetData(i, val);
-                                }
-                            }
-                        }
-
-                        if (!_isInternalized) ReportStatus("SUCCESS", "Ready", _currentPath);
-                    } catch (Exception ex) {
-                        _statusText = "EXECUTION ERROR";
-                        var errorReport = new List<object> {
-                            "[PYTHON 3 ERROR] " + ex.Message,
-                            "Check your log file for full stack trace."
-                        };
-                        DA.SetDataList(0, errorReport);
-                        if (!_isInternalized) ReportStatus("ERROR", ex.Message, _currentPath);
-                    }
+                var inputs = new Dictionary<string, object>();
+                int start = (_isInternalized || Params.Input.Count == 0 || Params.Input[0].Name != "File Path") ? 0 : 1;
+                for (int i = start; i < Params.Input.Count; i++) {
+                    object val = null; DA.GetData(i, ref val);
+                    inputs[Params.Input[i].Name] = val;
                 }
-            }
-            catch (Exception ex) 
-            {
+
+                // PYTHON 3 EXECUTION (RHINO 8 CPYTHON ENGINE)
+                try {
+                    var language = RhinoCode.Languages.QueryLatest(new LanguageSpec("mcneel.pythonnet.python"));
+                    if (language == null) {
+                        DA.SetDataList(0, new List<object> { "[ERROR] Python 3 engine not initialized." });
+                        return;
+                    }
+
+                    var script = language.CreateCode(_lastCode);
+                    var ctx = new RunContext();
+                    foreach (var kvp in inputs) ctx.Inputs[kvp.Key] = kvp.Value;
+                    ctx.Inputs["Inputs"] = inputs;
+                    
+                    // Inject __file__ for path discovery
+                    if (!string.IsNullOrEmpty(_currentPath)) {
+                        ctx.Inputs["__file__"] = _currentPath;
+                    }
+
+                    script.Run(ctx);
+                    
+                    var report = new List<object> {
+                        "Status: OK (Python 3)",
+                        "Link: " + (_isInternalized ? "STANDALONE" : _currentPath),
+                        "Sync: " + DateTime.Now.ToLongTimeString()
+                    };
+
+                    string logContent = GetLogContent();
+                    if (!string.IsNullOrEmpty(logContent)) report.Add("Log: " + logContent);
+                    DA.SetDataList(0, report);
+
+                    for (int i = 1; i < Params.Output.Count; i++) {
+                        string name = Params.Output[i].Name;
+                        if (ctx.Outputs.TryGet(name, out object val)) {
+                            if (val is IEnumerable l && !(val is string)) DA.SetDataList(i, l);
+                            else DA.SetData(i, val);
+                        }
+                    }
+
+                    if (!_isInternalized) ReportStatus("SUCCESS", "Ready", _currentPath, inputs);
+                } catch (Exception ex) {
+                    _statusText = "EXECUTION ERROR";
+                    DA.SetDataList(0, new List<object> { "[PYTHON 3 ERROR] " + ex.Message, "Check log for details." });
+                    if (!_isInternalized) ReportStatus("ERROR", ex.Message, _currentPath, null, ex.StackTrace);
+                }
+            } catch (Exception ex) {
                 _statusText = "FATAL ERROR";
-                ReportStatus("CRITICAL", ex.Message, _currentPath);
+                if (!_isInternalized) ReportStatus("CRITICAL", ex.Message, _currentPath, null, ex.StackTrace);
             }
         }
 
@@ -302,84 +313,94 @@ Result = rg.Sphere(rg.Point3d.Origin, Inputs.get('Radius', 1.0))
         {
             try {
                 if (string.IsNullOrEmpty(_currentPath)) return "";
-                string logFileName = $"bridge_status_{this.InstanceGuid.ToString().Substring(0, 8)}.log";
-                string logPath = Path.Combine(Path.GetDirectoryName(_currentPath), logFileName);
+                string logFile = $"bridge_status_{this.InstanceGuid.ToString().Substring(0, 8)}.log";
+                string logPath = Path.Combine(Path.GetDirectoryName(_currentPath), logFile);
                 if (File.Exists(logPath)) return File.ReadAllText(logPath);
             } catch { }
             return "";
         }
 
-        private void ReportStatus(string status, string message, string scriptPath)
+        private void ReportStatus(string status, string message, string scriptPath, Dictionary<string, object> inputs = null, string stackTrace = null)
         {
             try {
                 if (string.IsNullOrEmpty(scriptPath)) return;
-                string logFileName = $"bridge_status_{this.InstanceGuid.ToString().Substring(0, 8)}.log";
-                string logPath = Path.Combine(Path.GetDirectoryName(scriptPath), logFileName);
-                File.WriteAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] [{status}] {message}");
+                string logFile = $"bridge_status_{this.InstanceGuid.ToString().Substring(0, 8)}.log";
+                string logPath = Path.Combine(Path.GetDirectoryName(scriptPath), logFile);
+                
+                using (StreamWriter sw = new StreamWriter(logPath, false)) {
+                    sw.WriteLine("===========================================================================");
+                    sw.WriteLine($"DYNAMIC PYTHON BRIDGE DIAGNOSTIC | {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    sw.WriteLine("===========================================================================");
+                    sw.WriteLine($"STATUS: [{status}]");
+                    sw.WriteLine($"MESSAGE: {message}");
+                    sw.WriteLine($"FILE: {scriptPath}");
+                    sw.WriteLine("---------------------------------------------------------------------------");
+
+                    if (!string.IsNullOrEmpty(stackTrace)) {
+                        sw.WriteLine("CRITICAL PYTHON ERROR:");
+                        sw.WriteLine(stackTrace);
+                        sw.WriteLine("---------------------------------------------------------------------------");
+                    }
+
+                    if (inputs != null) {
+                        sw.WriteLine("INPUTS STATE SNAPSHOT:");
+                        foreach(var kvp in inputs) {
+                            string valStr = kvp.Value?.ToString() ?? "NULL";
+                            if (valStr.Length > 100) valStr = valStr.Substring(0, 97) + "...";
+                            sw.WriteLine($"- {kvp.Key}: {valStr} ({kvp.Value?.GetType().Name ?? "N/A"})");
+                        }
+                        sw.WriteLine("---------------------------------------------------------------------------");
+                    }
+
+                    sw.WriteLine("EXECUTED SOURCE CODE:");
+                    string[] codeLines = _lastCode.Split('\n');
+                    for (int i = 0; i < codeLines.Length; i++) {
+                        sw.WriteLine($"{(i + 1),3}: {codeLines[i].TrimEnd()}");
+                    }
+                    sw.WriteLine("===========================================================================");
+                }
             } catch { }
         }
 
         private bool SyncParameters(string code)
         {
-            // STRICT CLEAN START: Only parse tags if linked or internalized
-            bool hasFile = !string.IsNullOrEmpty(_currentPath) && File.Exists(_currentPath);
-            if (!_isInternalized && !hasFile)
-            {
-                bool paramsChanged = false;
-                for (int i = Params.Input.Count - 1; i >= 1; i--) { Params.UnregisterInputParameter(Params.Input[i]); paramsChanged = true; }
-                for (int i = Params.Output.Count - 1; i >= 1; i--) { Params.UnregisterOutputParameter(Params.Output[i]); paramsChanged = true; }
-                return paramsChanged;
-            }
-
             var lines = (code ?? "").Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            var dIn = new List<string>();
-            var dOut = new List<string>();
+            var newIn = new List<string>();
+            var newOut = new List<string>();
+
             foreach (var line in lines) {
-                string trimmed = line.Trim();
-                if (!trimmed.StartsWith("#")) continue;
-                string content = trimmed.TrimStart('#', ' ');
-                
-                if (content.StartsWith("IN:")) {
-                    dIn.AddRange(content.Substring(3).Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)));
-                }
-                else if (content.StartsWith("OUT:")) {
-                    dOut.AddRange(content.Substring(4).Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)));
-                }
+                string t = line.Trim();
+                if (t.StartsWith("// IN:") || t.StartsWith("# IN:")) 
+                    newIn.AddRange(t.Split(':')[1].Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)));
+                if (t.StartsWith("// OUT:") || t.StartsWith("# OUT:")) 
+                    newOut.AddRange(t.Split(':')[1].Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)));
             }
 
             bool changed = false;
-            if (_isInternalized) {
-                if (Params.Input.Count > 0 && Params.Input[0].Name == "File Path") {
-                    Params.UnregisterInputParameter(Params.Input[0]);
-                    changed = true;
+            int startIdx = (_isInternalized || Params.Input.Count == 0 || Params.Input[0].Name != "File Path") ? 0 : 1;
+
+            // 1. Check Inputs
+            var currentIn = Params.Input.Skip(startIdx).Select(p => p.Name).ToList();
+            if (!newIn.SequenceEqual(currentIn)) {
+                for (int i = Params.Input.Count - 1; i >= startIdx; i--) Params.UnregisterInputParameter(Params.Input[i]);
+                foreach (var name in newIn) {
+                    var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = name, NickName = name, Access = GH_ParamAccess.item, Optional = true };
+                    Params.RegisterInputParam(p);
                 }
-            } else {
-                if (Params.Input.Count == 0 || Params.Input[0].Name != "File Path") {
-                    var p = new Grasshopper.Kernel.Parameters.Param_String { Name = "File Path", NickName = "P", Access = GH_ParamAccess.item, Optional = true };
-                    Params.RegisterInputParam(p, 0);
-                    changed = true;
-                }
+                changed = true;
             }
 
-            int dynInStart = (_isInternalized || Params.Input.Count == 0 || Params.Input[0].Name != "File Path") ? 0 : 1;
-            for (int i = Params.Input.Count - 1; i >= dynInStart; i--) {
-                if (!dIn.Contains(Params.Input[i].Name)) { Params.UnregisterInputParameter(Params.Input[i]); changed = true; }
-            }
-            foreach (var name in dIn) {
-                if (!string.IsNullOrEmpty(name) && !Params.Input.Any(p => p.Name == name)) {
-                    var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = name, NickName = name, Access = GH_ParamAccess.item, Optional = true };
-                    Params.RegisterInputParam(p); changed = true;
-                }
-            }
-            for (int i = Params.Output.Count - 1; i >= 1; i--) {
-                if (!dOut.Contains(Params.Output[i].Name)) { Params.UnregisterOutputParameter(Params.Output[i]); changed = true; }
-            }
-            foreach (var name in dOut) {
-                if (!string.IsNullOrEmpty(name) && !Params.Output.Any(p => p.Name == name)) {
+            // 2. Check Outputs
+            var currentOut = Params.Output.Skip(1).Select(p => p.Name).ToList();
+            if (!newOut.SequenceEqual(currentOut)) {
+                for (int i = Params.Output.Count - 1; i >= 1; i--) Params.UnregisterOutputParameter(Params.Output[i]);
+                foreach (var name in newOut) {
                     var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = name, NickName = name };
-                    Params.RegisterOutputParam(p); changed = true;
+                    Params.RegisterOutputParam(p);
                 }
+                changed = true;
             }
+
             return changed;
         }
 

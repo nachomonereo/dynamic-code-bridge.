@@ -10,11 +10,12 @@
   </PropertyGroup>
   
   <PropertyGroup>
-    <Version>1.1.2</Version>
-    <Title>Dynamic Code Bridge</Title>
-    <Company>Nacho Monereo IAAC</Company>
-    <Authors>Nacho Monereo IAAC</Authors>
-    <Description>A universal live-coding bridge for Grasshopper (C# & Python) with AI-assisted debugging.</Description>
+    <Version>1.3.4</Version>
+    <Authors>Nacho Monereo; Robots Lab IAAC</Authors>
+    <Company>IAAC - Robots Lab</Company>
+    <Description>Dynamic Code Bridge for Rhino 8 with Diagnostic Telemetry. Developed at IAAC Robots Lab.</Description>
+    <PackageProjectUrl>https://github.com/iaac/DynamicCodeBridge</PackageProjectUrl>
+    <Copyright>Copyright © IAAC 2024</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

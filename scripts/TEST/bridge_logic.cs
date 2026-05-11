@@ -1,36 +1,36 @@
-// IN: Count, Spacing, Height
-// OUT: Spheres, Connections
+// IN: Size, Spacing
+// OUT: MatrixPoints, Status
 
 using System;
 using System.Collections.Generic;
 using Rhino.Geometry;
 using Grasshopper.Kernel.Types;
 
-// --- LIVE EXECUTION AREA ---
+try {
+    // 1. Inputs
+    int n = (Inputs.ContainsKey("Size") && Inputs["Size"] != null) 
+        ? Convert.ToInt32(Inputs["Size"].ToString()) : 10;
+        
+    double s = (Inputs.ContainsKey("Spacing") && Inputs["Spacing"] != null)
+        ? Convert.ToDouble(Inputs["Spacing"].ToString()) : 5.0;
 
-int count = 10;
-double spacing = 5.0;
-double h = 10.0;
-
-// Safe retrieval
-if (Inputs.ContainsKey("Count") && Inputs["Count"] != null) count = Convert.ToInt32(Inputs["Count"]);
-if (Inputs.ContainsKey("Spacing") && Inputs["Spacing"] != null) spacing = Convert.ToDouble(Inputs["Spacing"]);
-if (Inputs.ContainsKey("Height") && Inputs["Height"] != null) h = Convert.ToDouble(Inputs["Height"]);
-
-List<Sphere> spheres = new List<Sphere>();
-List<Line> lines = new List<Line>();
-
-for (int i = 0; i < count; i++) {
-    Point3d p = new Point3d(i * spacing, 0, Math.Sin(i * 0.5) * h);
-    spheres.Add(new Sphere(p, 1.0));
-    if (i > 0) {
-        lines.Add(new Line(spheres[i-1].Center, p));
+    // 2. Logic: Create a nested list structure
+    List<List<Point3d>> grid = new List<List<Point3d>>();
+    
+    for (int i = 0; i < n; i++) {
+        List<Point3d> row = new List<Point3d>();
+        for (int j = 0; j < n; j++) {
+            row.Add(new Point3d(i * s, j * s, 0));
+        }
+        grid.Add(row);
     }
+
+    // 3. Outputs
+    var MatrixPoints = grid;
+    var Status = "C# Iteration 10: Matrix " + n + "x" + n + " generated.";
+
+} catch (Exception ex) {
+    throw new Exception("C# Matrix Error: " + ex.Message, ex);
 }
 
-// Assign to Output variables (matching // OUT tags)
-var Spheres = spheres;
-var Connections = lines;
-
-// Final status string
-$"C# Bridge: Generated {count} items with Sin-Wave height {h}"
+"Iteration 10: Stable"

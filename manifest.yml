@@ -1,18 +1,16 @@
 ---
-name: Dynamic-Code-Bridge
-version: 1.1.2
+name: DynamicCodeBridge
+version: 1.3.4
 authors:
-- Nacho Monereo
-description: A powerful plugin to generate a dynamic link between external code files (C# & Python) and Grasshopper. Edit your code in real-time with zero latency and use our AI-assisted auto-debugging system for a seamless development experience.
-url: https://github.com/nachomonereo/dynamic-code-bridge
+  - Nacho Monereo
+  - Robots Lab IAAC
+description: A professional live-coding bridge for Rhino 8 with Atomic Sync and Diagnostic Telemetry. Developed at IAAC Robots Lab.
+url: https://github.com/iaac/DynamicCodeBridge
 keywords:
-- scripting
-- livecoding
-- ai
-- csharp
-- python
-- bridge
-- grasshopper
-- iaac
-- autodebugging
+  - IAAC
+  - Robots Lab
+  - Live Coding
+  - CPython
+  - Roslyn
+  - autodebugging
 icon_url: logo.png

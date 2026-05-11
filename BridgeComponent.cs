@@ -37,40 +37,37 @@ namespace DynamicCodeBridge
         }
 
         public DynamicBridgeComponent()
-          : base("Dynamic C# Bridge", "CS Bridge",
-              "A professional live-coding bridge for C# with AI Auto-Debugging.",
-              "Math", "Script")
+          : base("Dynamic C# Bridge", "CsBridge",
+              "A real-time C# link for Rhino 8 with Atomic Sync & Diagnostic Logs.",
+              "IAAC", "CodeBridge")
         {
             _lastCode = @"/* 
+   🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.3.4
    ===========================================================================
-   DYNAMIC C# BRIDGE - MASTER MANUAL & AI SYSTEM PROMPT v4.0
+   Developed by Nacho Monereo | IAAC
    ===========================================================================
    
-   INSTRUCTIONS:
+   📖 INSTRUCTIONS:
    1. LINK: Connect this file path to the 'P' input of the Bridge component.
-   2. SYNC: Save this file (Ctrl+S) and Grasshopper updates instantly.
-   3. AI LOOP: Copy the prompt below to ChatGPT/Gemini to generate code.
+   2. SYNC: Save (Ctrl+S) in your editor and Grasshopper updates instantly.
+   3. LIBRARIES: Add '# r: library_name' at the very top to auto-install.
+   4. AUTO-DEBUGGING: If an error occurs, the Bridge generates a '.log' file. 
+      PROVIDE THIS LOG TO YOUR AI (ChatGPT/Gemini). It contains the stack trace 
+      and variable states needed to fix the code automatically.
    
-   DEBUGGING:
-   This bridge generates a unique log: 'bridge_status_[ID].log'.
-   If you get an error, provide this log to your AI Assistant.
-   The AI will read the stack trace and fix the logic for you.
-   
+   🤖 [ AI SYSTEM PROMPT - COPY & PASTE TO CHATGPT/GEMINI ]
    ---------------------------------------------------------------------------
-   [ COPY-PASTE THIS SYSTEM PROMPT TO YOUR AI ASSISTANT ]
-   ---------------------------------------------------------------------------
-   ""You are an expert Rhino/Grasshopper C# Developer. I am using the 'Dynamic 
-   Code Bridge'. This system uses an external .cs file to control a 
+   ""You are an expert Rhino/Grasshopper C# Developer. I am using the 
+   'Dynamic Code Bridge'. This system uses an external .cs file to control a 
    Grasshopper component via meta-programming.
    
-   RULES FOR GENERATING CODE:
-   1. PARAMETERS: Start the file with tags: // IN: Name or // OUT: Name.
-   2. LIBRARIES: Use 'using Rhino.Geometry;' and 'using Grasshopper.Kernel.Types;'.
-   3. DATA ACCESS: Use the 'Inputs[""Name""]' dictionary to read values.
-   4. TYPE CHECKING: Use 'is GH_Number', 'is GH_Point', etc., to unwrap data.
+   MANDATORY RULES FOR GENERATING CODE:
+   1. TAGS: Start the file with '// IN: Name1, Name2' and '// OUT: Name1, Name2'.
+   2. DATA ACCESS: Use 'Convert.ToDouble(Inputs[""Name""].ToString())' for numbers.
+   3. TYPES: Use 'using Rhino.Geometry;' and 'using Grasshopper.Kernel.Types;'.
+   4. LISTS: Check if an input is 'IList' or 'IEnumerable' before iterating.
    5. OUTPUTS: Assign results to variables matching your // OUT tags.
-   
-   TASK: Generate a script that [DESCRIBE YOUR GOAL HERE]""
+   6. STABILITY: Wrap everything in a 'try-catch' block to feed the logger.""
    ---------------------------------------------------------------------------
 */
 
@@ -84,23 +81,25 @@ using Grasshopper.Kernel.Types;
 
 // --- LIVE EXECUTION AREA ---
 
-double r = 1.0;
+try {
+    // 1. SAFE INPUT RECOVERY (Pattern v1.3)
+    // We convert the input to string before parsing to handle GH types.
+    double r = (Inputs.ContainsKey(""Radius"") && Inputs[""Radius""] != null) 
+        ? Convert.ToDouble(Inputs[""Radius""].ToString()) : 1.0;
 
-// 1. Retrieve & Unwrap Input (AI Pattern)
-if (Inputs.ContainsKey(""Radius"") && Inputs[""Radius""] is GH_Number ghn) {
-    r = ghn.Value;
-} else if (Inputs.ContainsKey(""Radius"") && Inputs[""Radius""] != null) {
-    try { r = Convert.ToDouble(Inputs[""Radius""]); } catch { }
+    // 2. GEOMETRY LOGIC
+    // Your parametric logic goes here.
+    var MySphere = new Sphere(Point3d.Origin, Math.Max(0.1, r));
+
+    // 3. EXECUTION STATUS
+    // The output will be shown in the 'OUT' report pin.
+    $""C# Bridge Ready | Sphere Radius: {r:F2}"";
+
+} catch (Exception ex) {
+    // DO NOT REMOVE: This feeds the Deep Diagnostic Log system.
+    throw new Exception(""Diagnostic Error: "" + ex.Message, ex);
 }
-
-// 2. Logic (AI Pattern)
-Sphere sphere = new Sphere(Point3d.Origin, Math.Max(0.1, r));
-
-// 3. Assign to Output (Matches // OUT: MySphere)
-var MySphere = sphere;
-
-// Return execution info
-$""C# Bridge: Generated Sphere with Radius {r:F2}""";
+";
         }
 
         public override void CreateAttributes()
@@ -342,7 +341,7 @@ $""C# Bridge: Generated Sphere with Radius {r:F2}""";
                         } catch { }
                     }
 
-                    if (!_isInternalized) ReportStatus("SUCCESS", "Ready", _currentPath);
+                    if (!_isInternalized) ReportStatus("SUCCESS", "Ready", _currentPath, globals.Inputs);
                 }
             }
             catch (Exception ex) 
@@ -350,13 +349,12 @@ $""C# Bridge: Generated Sphere with Radius {r:F2}""";
                 _statusText = "EXECUTION ERROR";
                 var errReport = new List<string> {
                     "ERROR: " + ex.Message,
+                    "Line: " + (ex.StackTrace ?? "Unknown"),
                     "Link: " + (_isInternalized ? "STANDALONE" : _currentPath),
-                    "Sync: " + DateTime.Now.ToLongTimeString(),
-                    "Log: " + GetLogContent(),
-                    "Code: " + _lastCode
+                    "Sync: " + DateTime.Now.ToLongTimeString()
                 };
                 DA.SetDataList(0, errReport);
-                if (!_isInternalized) ReportStatus("ERROR", ex.Message, _currentPath);
+                if (!_isInternalized) ReportStatus("ERROR", ex.Message, _currentPath, null, ex.StackTrace);
                 _cachedScript = null; 
             }
         }
@@ -372,80 +370,87 @@ $""C# Bridge: Generated Sphere with Radius {r:F2}""";
             return "";
         }
 
-        private void ReportStatus(string status, string message, string scriptPath)
+        private void ReportStatus(string status, string message, string scriptPath, Dictionary<string, object> inputs = null, string stackTrace = null)
         {
             try {
                 if (string.IsNullOrEmpty(scriptPath)) return;
                 string logFileName = $"bridge_status_{this.InstanceGuid.ToString().Substring(0, 8)}.log";
                 string logPath = Path.Combine(Path.GetDirectoryName(scriptPath), logFileName);
-                File.WriteAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] [{status}] {message}");
+                
+                using (StreamWriter sw = new StreamWriter(logPath, false)) {
+                    sw.WriteLine("===========================================================================");
+                    sw.WriteLine($"DYNAMIC BRIDGE DIAGNOSTIC REPORT | {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                    sw.WriteLine("===========================================================================");
+                    sw.WriteLine($"STATUS: [{status}]");
+                    sw.WriteLine($"MESSAGE: {message}");
+                    sw.WriteLine($"FILE: {scriptPath}");
+                    sw.WriteLine("---------------------------------------------------------------------------");
+
+                    if (!string.IsNullOrEmpty(stackTrace)) {
+                        sw.WriteLine("CRITICAL ERROR DETECTED:");
+                        sw.WriteLine(stackTrace);
+                        sw.WriteLine("---------------------------------------------------------------------------");
+                    }
+
+                    if (inputs != null) {
+                        sw.WriteLine("INPUTS STATE SNAPSHOT:");
+                        foreach(var kvp in inputs) {
+                            string valStr = kvp.Value?.ToString() ?? "NULL";
+                            if (valStr.Length > 100) valStr = valStr.Substring(0, 97) + "...";
+                            sw.WriteLine($"- {kvp.Key}: {valStr} ({kvp.Value?.GetType().Name ?? "N/A"})");
+                        }
+                        sw.WriteLine("---------------------------------------------------------------------------");
+                    }
+
+                    sw.WriteLine("EXECUTED SOURCE CODE:");
+                    string[] codeLines = _lastCode.Split('\n');
+                    for (int i = 0; i < codeLines.Length; i++) {
+                        sw.WriteLine($"{(i + 1),3}: {codeLines[i].TrimEnd()}");
+                    }
+                    sw.WriteLine("===========================================================================");
+                }
             } catch { }
         }
 
         private bool SyncParameters(string code)
         {
-            // STRICT CLEAN START: Only parse tags if linked or internalized
-            bool hasFile = !string.IsNullOrEmpty(_currentPath) && File.Exists(_currentPath);
-            if (!_isInternalized && !hasFile)
-            {
-                bool paramsChanged = false;
-                for (int i = Params.Input.Count - 1; i >= 1; i--) { Params.UnregisterInputParameter(Params.Input[i]); paramsChanged = true; }
-                for (int i = Params.Output.Count - 1; i >= 1; i--) { Params.UnregisterOutputParameter(Params.Output[i]); paramsChanged = true; }
-                return paramsChanged;
-            }
-
             var lines = (code ?? "").Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            var dIn = new List<string>();
-            var dOut = new List<string>();
+            var newIn = new List<string>();
+            var newOut = new List<string>();
+
             foreach (var line in lines) {
-                string trimmed = line.Trim();
-                if (!trimmed.StartsWith("//")) continue;
-                string content = trimmed.TrimStart('/', ' ');
-                
-                if (content.StartsWith("IN:")) {
-                    dIn.AddRange(content.Substring(3).Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)));
-                }
-                else if (content.StartsWith("OUT:")) {
-                    dOut.AddRange(content.Substring(4).Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)));
-                }
+                string t = line.Trim();
+                if (t.StartsWith("// IN:") || t.StartsWith("# IN:")) 
+                    newIn.AddRange(t.Split(':')[1].Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)));
+                if (t.StartsWith("// OUT:") || t.StartsWith("# OUT:")) 
+                    newOut.AddRange(t.Split(':')[1].Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)));
             }
 
             bool changed = false;
+            int startIdx = (_isInternalized || Params.Input.Count == 0 || Params.Input[0].Name != "File Path") ? 0 : 1;
 
-            if (_isInternalized) {
-                if (Params.Input.Count > 0 && Params.Input[0].Name == "File Path") {
-                    Params.UnregisterInputParameter(Params.Input[0]);
-                    changed = true;
-                }
-            } else {
-                if (Params.Input.Count == 0 || Params.Input[0].Name != "File Path") {
-                    var p = new Grasshopper.Kernel.Parameters.Param_String { Name = "File Path", NickName = "P", Access = GH_ParamAccess.item, Optional = true };
-                    Params.RegisterInputParam(p, 0);
-                    changed = true;
-                }
-            }
-
-            int dynInStart = (_isInternalized || Params.Input.Count == 0 || Params.Input[0].Name != "File Path") ? 0 : 1;
-            
-            for (int i = Params.Input.Count - 1; i >= dynInStart; i--) {
-                if (!dIn.Contains(Params.Input[i].Name)) { Params.UnregisterInputParameter(Params.Input[i]); changed = true; }
-            }
-            foreach (var name in dIn) {
-                if (!string.IsNullOrEmpty(name) && !Params.Input.Any(p => p.Name == name)) {
+            // 1. Check Inputs
+            var currentIn = Params.Input.Skip(startIdx).Select(p => p.Name).ToList();
+            if (!newIn.SequenceEqual(currentIn)) {
+                for (int i = Params.Input.Count - 1; i >= startIdx; i--) Params.UnregisterInputParameter(Params.Input[i]);
+                foreach (var name in newIn) {
                     var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = name, NickName = name, Access = GH_ParamAccess.item, Optional = true };
-                    Params.RegisterInputParam(p); changed = true;
+                    Params.RegisterInputParam(p);
                 }
+                changed = true;
             }
 
-            for (int i = Params.Output.Count - 1; i >= 1; i--) {
-                if (!dOut.Contains(Params.Output[i].Name)) { Params.UnregisterOutputParameter(Params.Output[i]); changed = true; }
-            }
-            foreach (var name in dOut) {
-                if (!string.IsNullOrEmpty(name) && !Params.Output.Any(p => p.Name == name)) {
+            // 2. Check Outputs
+            var currentOut = Params.Output.Skip(1).Select(p => p.Name).ToList();
+            if (!newOut.SequenceEqual(currentOut)) {
+                for (int i = Params.Output.Count - 1; i >= 1; i--) Params.UnregisterOutputParameter(Params.Output[i]);
+                foreach (var name in newOut) {
                     var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = name, NickName = name };
-                    Params.RegisterOutputParam(p); changed = true;
+                    Params.RegisterOutputParam(p);
                 }
+                changed = true;
             }
+
             return changed;
         }
 

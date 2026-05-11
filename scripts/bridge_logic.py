@@ -1,50 +1,58 @@
-#! python3
-# venv: iaac_bridge
-# r: rhino-geometry, grasshopper-kernel
-
-"""
-===========================================================================
-DYNAMIC PYTHON BRIDGE - MASTER MANUAL & AI SYSTEM PROMPT v4.0
-===========================================================================
-
-INSTRUCTIONS:
-1. ENVIRONMENT: The # venv and # r headers manage Rhino 8 CPython.
-2. AI LOOP: Copy the prompt below to ChatGPT/Gemini to generate code.
-
----------------------------------------------------------------------------
-[ COPY-PASTE THIS SYSTEM PROMPT TO YOUR AI ASSISTANT ]
----------------------------------------------------------------------------
-"You are a Rhino/Grasshopper Python Expert. I am using the 'Dynamic Python 
-Bridge' in Rhino 8 (CPython). This bridge syncs this file to GH.
-
-RULES FOR GENERATING CODE:
-1. PARAMETERS: Use # IN: Name or # OUT: Name at the top.
-2. LIBRARIES: Import 'Rhino.Geometry as rg'.
-3. DATA ACCESS: Use the 'Inputs' dictionary.
-4. TYPE CHECKING: Check for GH types (e.g., .Value) or raw Python types.
-5. OUTPUTS: Define variables matching your # OUT tags to return data.
-
-TASK: Generate a script that [DESCRIBE YOUR GOAL HERE]"
----------------------------------------------------------------------------
-"""
+# r: numpy
+# !python3
+# ===========================================================================
+# 🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.3.4
+# Developed by Nacho Monereo | IAAC
+# ===========================================================================
+#
+# 📖 INSTRUCTIONS:
+# 1. LINK: Connect this file path to the 'P' input of the Bridge component.
+# 2. SYNC: Save (Ctrl+S) in your editor and Grasshopper updates instantly.
+# 3. LIBRARIES: Add '# r: library_name' at the very top to auto-install.
+# 4. AUTO-DEBUGGING: If an error occurs, the Bridge generates a '.log' file. PROVIDE THIS LOG TO YOUR AI (ChatGPT/Gemini). It contains the stack trace and variable states needed to fix the code automatically.
+#
+# 🤖 [ AI SYSTEM PROMPT - COPY & PASTE TO CHATGPT/GEMINI ]
+# ---------------------------------------------------------------------------
+# "You are an expert Rhino/Grasshopper Python Developer. I am using the 
+# 'Dynamic Code Bridge' for Rhino 8 (CPython). 
+# 
+# MANDATORY RULES FOR GENERATING CODE:
+# 1. HEADERS: Use '# r: library' on Line 1 for dependencies.
+# 2. TAGS: Use '# IN: Name1, Name2' and '# OUT: Name1, Name2' to sync pins.
+# 3. COMPATIBILITY: Always start with 'Inputs = dict(Inputs)'.
+# 4. DATA ACCESS: Use 'val.Value if hasattr(val, ""Value"") else val' for numbers.
+# 5. LISTS: Always validate if an input is a list before iterating.
+# 6. OUTPUTS: Assign results to variables matching your # OUT tags."
+# ---------------------------------------------------------------------------
 
 # IN: Radius
 # OUT: MySphere
 
 import Rhino.Geometry as rg
 
-# 1. Retrieve Input (AI Pattern)
-r = 1.0
-if 'Radius' in Inputs and Inputs['Radius'] is not None:
-    try:
-        # Robust unwrapping of GH_Number or float
-        r = float(Inputs['Radius'].Value) if hasattr(Inputs['Radius'], 'Value') else float(Inputs['Radius'])
-    except:
-        pass
+# 1. COMPATIBILITY LAYER
+# We convert the .NET dictionary to a native Python dict.
+Inputs = dict(Inputs)
 
-# 2. Logic (AI Pattern)
-MySphere = rg.Sphere(rg.Point3d.Origin, max(0.1, r))
+def get_num(key, default):
+    val = Inputs.get(key)
+    if val is None: return default
+    # Extract the .Value from Grasshopper types (GH_Number, GH_Integer)
+    return val.Value if hasattr(val, 'Value') else val
 
-# 3. Print execution info
-print(f"Python Bridge: Sphere created with R={r:.2f}")
-'Python Bridge Ready'
+try:
+    # 2. INPUT RECOVERY
+    # Pattern: get_num('PinName', defaultValue)
+    r = float(get_num('Radius', 1.0))
+
+    # 3. GEOMETRY LOGIC
+    # Your parametric logic goes here.
+    MySphere = rg.Sphere(rg.Point3d.Origin, max(0.1, r))
+
+    # 4. STATUS REPORT
+    print('Python Bridge Ready | Sphere Radius: {0:.2f}'.format(r))
+    'Status: OK'
+
+except Exception as e:
+    # Diagnostic Log will capture the full StackTrace and Input Snapshot.
+    raise e
