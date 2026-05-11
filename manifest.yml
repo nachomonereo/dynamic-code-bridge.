@@ -8,8 +8,8 @@ description: A professional live-coding bridge for Rhino 8 with Atomic Sync and 
 url: https://github.com/iaac/DynamicCodeBridge
 keywords:
   - IAAC
-  - Robots Lab
-  - Live Coding
+  - Robots-Lab
+  - Live-Coding
   - CPython
   - Roslyn
   - autodebugging
