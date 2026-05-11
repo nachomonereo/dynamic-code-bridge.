@@ -260,27 +260,35 @@ print(f""Python Bridge: Sphere created with R={r:.2f}"")
                     // PYTHON EXECUTION (RHINO 8 COMPATIBLE SCOPE)
                     var py = Rhino.Runtime.PythonScript.Create();
                     
-                    // Inject inputs one by one for maximum compatibility
+                    // Inject inputs as Global Variables for ultra-fast access
                     foreach (var kvp in inputs) {
-                        py.SetVariable(kvp.Key, kvp.Value);
+                        try { py.SetVariable(kvp.Key, kvp.Value); } catch { }
                     }
                     py.SetVariable("Inputs", inputs);
                     
-                    var result = py.ExecuteScript(_lastCode);
-                    
-                    // Consolidated Output (OUT)
-                    var report = new List<object>();
-                    if (result != null) report.Add(result);
-                    report.Add("Status: OK");
-                    report.Add("Link: " + (_isInternalized ? "STANDALONE" : _currentPath));
-                    report.Add("Sync: " + DateTime.Now.ToLongTimeString());
+                    try {
+                        var result = py.ExecuteScript(_lastCode);
+                        
+                        // Consolidated Output (OUT)
+                        var report = new List<object>();
+                        if (result != null) report.Add(result);
+                        report.Add("Status: OK");
+                        report.Add("Link: " + (_isInternalized ? "STANDALONE" : _currentPath));
+                        report.Add("Sync: " + DateTime.Now.ToLongTimeString());
 
-                    // Add Log contents
-                    string logContent = GetLogContent();
-                    if (!string.IsNullOrEmpty(logContent)) report.Add("Log: " + logContent);
-
-                    report.Add("Code: " + _lastCode);
-                    DA.SetDataList(0, report);
+                        string logContent = GetLogContent();
+                        if (!string.IsNullOrEmpty(logContent)) report.Add("Log: " + logContent);
+                        
+                        DA.SetDataList(0, report);
+                    } catch (Exception ex) {
+                        _statusText = "EXECUTION ERROR";
+                        var errorReport = new List<object> {
+                            "[PYTHON ERROR] " + ex.Message,
+                            "Context: " + Path.GetFileName(_currentPath),
+                            "Check your log file for full stack trace."
+                        };
+                        DA.SetDataList(0, errorReport);
+                    }
 
                     // Dynamic Outputs
                     for (int i = 1; i < Params.Output.Count; i++) {

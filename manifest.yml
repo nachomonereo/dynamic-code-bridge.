@@ -1,6 +1,6 @@
 ---
 name: Dynamic-Code-Bridge
-version: 1.0.1
+version: 1.0.2
 authors:
 - Nacho Monereo
 description: A powerful plugin to generate a dynamic link between external code files (C# & Python) and Grasshopper. Edit your code in real-time with zero latency and use our AI-assisted auto-debugging system for a seamless development experience.
