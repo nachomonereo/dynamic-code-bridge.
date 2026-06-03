@@ -34,7 +34,7 @@
    ---------------------------------------------------------------------------
 */
 
-// IN: Size[1..50=10], Spacing[1.0..20.0=5.0]
+// IN: Size[1..50=10], Spacing[1.0..20.0=5.0], ZScale[0.0..10.0=1.0], FlipAxes[boolean]
 // OUT: MatrixPoints, Status
 
 using System;
@@ -45,6 +45,8 @@ using Grasshopper.Kernel.Types;
 // INPUT PARAMETERS TYPE REFERENCE:
 // - Size: Int (Numeric Range: 1..50, Default: 10)
 // - Spacing: Double (Numeric Range: 1.0..20.0, Default: 5.0)
+// - ZScale: Double (Numeric Range: 0.0..10.0, Default: 1.0)
+// - FlipAxes: Boolean (Type: bool, Default: false)
 
 // --- LIVE EXECUTION AREA ---
 
@@ -64,19 +66,33 @@ try {
         s = Convert.ToDouble(Inputs["Spacing"].ToString());
     }
 
-    // 3. Logic: Create a nested list structure (Point Grid)
+    double zScale = 1.0;
+    if (Inputs.ContainsKey("ZScale") && Inputs["ZScale"] != null) {
+        zScale = Convert.ToDouble(Inputs["ZScale"].ToString());
+    }
+
+    bool flip = false;
+    if (Inputs.ContainsKey("FlipAxes") && Inputs["FlipAxes"] != null) {
+        flip = Convert.ToBoolean(Inputs["FlipAxes"].ToString());
+    }
+
+    // 3. Logic: Create a nested list structure (Point Grid with Z scaling & Axis transpose)
     List<List<Point3d>> grid = new List<List<Point3d>>();
     for (int i = 0; i < n; i++) {
         List<Point3d> row = new List<Point3d>();
         for (int j = 0; j < n; j++) {
-            row.Add(new Point3d(i * s, j * s, 0));
+            if (flip) {
+                row.Add(new Point3d(j * s, i * s, (i + j) * zScale));
+            } else {
+                row.Add(new Point3d(i * s, j * s, (i + j) * zScale));
+            }
         }
         grid.Add(row);
     }
 
     // 4. Assign outputs
     MatrixPoints = grid;
-    Status = "C# Iteration 10: Matrix " + n + "x" + n + " generated.";
+    Status = "C# Iteration 12 (FlipAxes added): Matrix " + n + "x" + n + " generated with ZScale=" + zScale.ToString("F2") + ", FlipAxes=" + flip.ToString() + ".";
 
 } catch (Exception ex) {
     throw new Exception("C# Matrix Error: " + ex.Message, ex);

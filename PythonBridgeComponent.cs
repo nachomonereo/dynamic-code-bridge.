@@ -347,6 +347,7 @@ except Exception as e:
 
                     var script = language.CreateCode(_lastCode);
                     var ctx = new RunContext();
+                    ctx.AutoApplyParams = true;
                     foreach (var kvp in inputs) ctx.Inputs[kvp.Key] = kvp.Value;
                     ctx.Inputs["Inputs"] = inputs;
                     
