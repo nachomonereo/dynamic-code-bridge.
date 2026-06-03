@@ -176,7 +176,7 @@ try {
                     try {
                         string codeToExport = _lastCode;
                         string header = @"/* 
-   🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.5.0
+   🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.5.1
    ===========================================================================
    Bridge Component ID: {shortId}
    ===========================================================================

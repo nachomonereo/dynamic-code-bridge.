@@ -1,6 +1,6 @@
 /* 
    ===========================================================================
-   DYNAMIC C# BRIDGE - MASTER MANUAL & AI SYSTEM PROMPT v4.0
+   DYNAMIC C# BRIDGE - MASTER MANUAL & AI SYSTEM PROMPT v1.5.1
    ===========================================================================
    
    INSTRUCTIONS:
@@ -22,6 +22,7 @@
    
    RULES FOR GENERATING CODE:
    1. PARAMETERS: Start the file with tags: // IN: Name or // OUT: Name.
+      - Supported input types: [slider], [boolean], [color], [point], [plane], [text].
    2. LIBRARIES: Use 'using Rhino.Geometry;' and 'using Grasshopper.Kernel.Types;'.
    3. DATA ACCESS: Use the 'Inputs["Name"]' dictionary to read values.
    4. TYPE CHECKING: Use 'is GH_Number', 'is GH_Point', etc., to unwrap data.
@@ -31,8 +32,8 @@
    ---------------------------------------------------------------------------
 */
 
-// IN: Radius
-// OUT: MySphere
+// IN: Radius[0.0..10.0=5.0], Active[boolean], Color[color], Pt[point], Pl[plane], Msg[text]
+// OUT: MySphere, Status
 
 using System;
 using System.Collections.Generic;
@@ -41,20 +42,14 @@ using Grasshopper.Kernel.Types;
 
 // --- LIVE EXECUTION AREA ---
 
-double r = 1.0;
+try {
+    double r = (Inputs.ContainsKey("Radius") && Inputs["Radius"] != null) 
+        ? Convert.ToDouble(Inputs["Radius"].ToString()) : 5.0;
 
-// 1. Retrieve & Unwrap Input (AI Pattern)
-if (Inputs.ContainsKey("Radius") && Inputs["Radius"] is GH_Number ghn) {
-    r = ghn.Value;
-} else if (Inputs.ContainsKey("Radius") && Inputs["Radius"] != null) {
-    try { r = Convert.ToDouble(Inputs["Radius"]); } catch { }
+    var MySphere = new Sphere(Point3d.Origin, Math.Max(0.1, r));
+
+    string Status = $"C# Bridge Ready | Radius: {r:F2}";
+
+} catch (Exception ex) {
+    throw new Exception("Diagnostic Error: " + ex.Message, ex);
 }
-
-// 2. Logic (AI Pattern)
-Sphere sphere = new Sphere(Point3d.Origin, Math.Max(0.1, r));
-
-// 3. Assign to Output (Matches // OUT: MySphere)
-var MySphere = sphere;
-
-// Return execution info
-$"C# Bridge: Generated Sphere with Radius {r:F2}"

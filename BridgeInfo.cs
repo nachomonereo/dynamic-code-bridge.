@@ -7,7 +7,7 @@ namespace DynamicCodeBridge
 {
     public class iaacInfo : GH_AssemblyInfo
     {
-        public override string Name => "Dynamic Code Bridge";
+        public override string Name => "DynamicCodeBridge";
 
         //Return a 24x24 pixel bitmap to represent this GHA library.
         public override Bitmap Icon => null;
