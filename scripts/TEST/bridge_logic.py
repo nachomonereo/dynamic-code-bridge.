@@ -34,31 +34,43 @@ TASK: Generate a script that [DESCRIBE YOUR GOAL HERE]"
 ---------------------------------------------------------------------------
 """
 
-# IN: Radius[0.0..10.0=5.0], Active[boolean], Color[color], Pt[point], Pl[plane], Msg[text]
-# OUT: MySphere, Status
+# IN: SetA, SetB
+# OUT: Intersections, Status
 
 import Rhino.Geometry as rg
 
-# 1. Retrieve Input (AI Pattern)
+# 1. Retrieve Input Safely
 Inputs = dict(Inputs)
 
-def get_num(key, default):
-    val = Inputs.get(key)
-    if val is None: return default
-    return val.Value if hasattr(val, 'Value') else val
+def to_list(val):
+    if val is None: return []
+    if isinstance(val, (str, rg.GeometryBase, rg.Point3d, rg.Vector3d)):
+        return [val]
+    if hasattr(val, "__iter__"):
+        return list(val)
+    return [val]
 
-# Initialize outputs
-MySphere = None
+# Initialize outputs at module level
+Intersections = None
 Status = None
 
 try:
-    r = float(get_num('Radius', 5.0))
-    
-    # 2. Logic (AI Pattern)
-    MySphere = rg.Sphere(rg.Point3d.Origin, max(0.1, r))
-    
-    # 3. Assign Outputs
-    Status = f"Python Bridge Ready | Radius: {r:.2f}"
+    list_a = to_list(Inputs.get('SetA'))
+    list_b = to_list(Inputs.get('SetB'))
+
+    pts = []
+    for crv_a in list_a:
+        if not isinstance(crv_a, rg.Curve): continue
+        for crv_b in list_b:
+            if not isinstance(crv_b, rg.Curve): continue
+            
+            events = rg.Intersect.Intersection.CurveCurve(crv_a, crv_b, 0.01, 0.01)
+            if events:
+                for ev in events:
+                    pts.append(ev.PointA)
+
+    Intersections = pts
+    Status = f"Found {len(pts)} intersection points."
     print(Status)
 
 except Exception as e:

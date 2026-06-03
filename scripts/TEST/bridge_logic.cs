@@ -34,8 +34,8 @@
    ---------------------------------------------------------------------------
 */
 
-// IN: Radius[0.0..10.0=5.0], Active[boolean], Color[color], Pt[point], Pl[plane], Msg[text]
-// OUT: MySphere, Status
+// IN: Size[1..50=10], Spacing[1.0..20.0=5.0]
+// OUT: MatrixPoints, Status
 
 using System;
 using System.Collections.Generic;
@@ -45,49 +45,35 @@ using Grasshopper.Kernel.Types;
 // --- LIVE EXECUTION AREA ---
 
 // 1. Declare output variables at script scope (vital for Roslyn scripting outputs)
-object MySphere = null;
+object MatrixPoints = null;
 object Status = null;
 
 try {
-    // 2. Retrieve & Unwrap Inputs safely
-    double radius = 5.0;
-    if (Inputs.ContainsKey("Radius") && Inputs["Radius"] != null) {
-        radius = Convert.ToDouble(Inputs["Radius"].ToString());
+    // 2. Retrieve inputs safely
+    int n = 10;
+    if (Inputs.ContainsKey("Size") && Inputs["Size"] != null) {
+        n = Convert.ToInt32(Inputs["Size"].ToString());
+    }
+        
+    double s = 5.0;
+    if (Inputs.ContainsKey("Spacing") && Inputs["Spacing"] != null) {
+        s = Convert.ToDouble(Inputs["Spacing"].ToString());
     }
 
-    bool active = true;
-    if (Inputs.ContainsKey("Active") && Inputs["Active"] != null) {
-        if (Inputs["Active"] is bool b) active = b;
-        else if (Inputs["Active"] is GH_Boolean ghb) active = ghb.Value;
-        else bool.TryParse(Inputs["Active"].ToString(), out active);
+    // 3. Logic: Create a nested list structure (Point Grid)
+    List<List<Point3d>> grid = new List<List<Point3d>>();
+    for (int i = 0; i < n; i++) {
+        List<Point3d> row = new List<Point3d>();
+        for (int j = 0; j < n; j++) {
+            row.Add(new Point3d(i * s, j * s, 0));
+        }
+        grid.Add(row);
     }
 
-    Point3d center = Point3d.Origin;
-    if (Inputs.ContainsKey("Pt") && Inputs["Pt"] != null) {
-        if (Inputs["Pt"] is Point3d p) center = p;
-        else if (Inputs["Pt"] is GH_Point ghp) center = ghp.Value;
-    }
-
-    Plane plane = Plane.WorldXY;
-    if (Inputs.ContainsKey("Pl") && Inputs["Pl"] != null) {
-        if (Inputs["Pl"] is Plane pl) plane = pl;
-        else if (Inputs["Pl"] is GH_Plane ghpl) plane = ghpl.Value;
-    }
-
-    string msg = "Hello from C# Bridge!";
-    if (Inputs.ContainsKey("Msg") && Inputs["Msg"] != null) {
-        msg = Inputs["Msg"].ToString();
-    }
-
-    // 3. Geometry logic
-    if (active) {
-        MySphere = new Sphere(center, Math.Max(0.1, radius));
-        Status = $"C# Bridge Active | Sphere created at {center} with Radius: {radius:F2} | Msg: {msg}";
-    } else {
-        MySphere = null;
-        Status = "C# Bridge Inactive";
-    }
+    // 4. Assign outputs
+    MatrixPoints = grid;
+    Status = "C# Iteration 10: Matrix " + n + "x" + n + " generated.";
 
 } catch (Exception ex) {
-    throw new Exception("Execution Error: " + ex.Message, ex);
+    throw new Exception("C# Matrix Error: " + ex.Message, ex);
 }
