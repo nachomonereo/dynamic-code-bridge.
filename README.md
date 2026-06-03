@@ -1,10 +1,10 @@
-# 🌮 DynamicCodeBridge v1.6.1
+# 🌮 DynamicCodeBridge v1.6.2
 ### Professional Live-Coding Bridge for Rhino 8 & Grasshopper
 **Developed by Nacho Monereo | IAAC Robots Lab**
 
 [![Rhino 8](https://img.shields.io/badge/Rhino-8-blue.svg)](https://www.rhino3d.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Yak-1.6.1-green.svg)](https://yak.rhino3d.com/packages/DynamicCodeBridge)
+[![Version](https://img.shields.io/badge/Yak-1.6.2-green.svg)](https://yak.rhino3d.com/packages/DynamicCodeBridge)
 
 DynamicCodeBridge is a high-performance, real-time sync system linking external code files (`.cs`, `.py`) directly to Grasshopper. It enables you to write script logic inside professional external IDEs and instantly run, visualize, and debug it on the Grasshopper canvas.
 

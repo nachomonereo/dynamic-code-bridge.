@@ -409,8 +409,34 @@ try {
                             if (variable != null) {
                                 object val = variable.Value;
                                 outputs[param.Name] = val;
-                                if (val is IEnumerable && !(val is string)) DA.SetDataList(i, (IEnumerable)val);
-                                else DA.SetData(i, val);
+                                if (val is IEnumerable enumerable && !(val is string)) {
+                                    bool isNested = false;
+                                    foreach (var item in enumerable) {
+                                        if (item is IEnumerable && !(item is string)) {
+                                            isNested = true;
+                                        }
+                                        break;
+                                    }
+                                    if (isNested) {
+                                        var tree = new Grasshopper.DataTree<object>();
+                                        int pathIdx = 0;
+                                        foreach (var subList in enumerable) {
+                                            var path = new Grasshopper.Kernel.Data.GH_Path(pathIdx++);
+                                            if (subList is IEnumerable subEnum && !(subList is string)) {
+                                                foreach (var item in subEnum) {
+                                                    tree.Add(item, path);
+                                                }
+                                            } else {
+                                                tree.Add(subList, path);
+                                            }
+                                        }
+                                        DA.SetDataTree(i, tree);
+                                    } else {
+                                        DA.SetDataList(i, enumerable);
+                                    }
+                                } else {
+                                    DA.SetData(i, val);
+                                }
                             } else {
                                 outputs[param.Name] = null;
                             }

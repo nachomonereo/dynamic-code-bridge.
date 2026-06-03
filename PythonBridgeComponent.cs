@@ -351,6 +351,11 @@ except Exception as e:
                     foreach (var kvp in inputs) ctx.Inputs[kvp.Key] = kvp.Value;
                     ctx.Inputs["Inputs"] = inputs;
                     
+                    // Pre-populate expected output keys so CPython maps global variables to them
+                    for (int i = 1; i < Params.Output.Count; i++) {
+                        ctx.Outputs[Params.Output[i].Name] = null;
+                    }
+                    
                     // Inject __file__ for path discovery
                     if (!string.IsNullOrEmpty(_currentPath)) {
                         ctx.Inputs["__file__"] = _currentPath;
@@ -373,8 +378,34 @@ except Exception as e:
                         string name = Params.Output[i].Name;
                         if (ctx.Outputs.TryGet(name, out object val)) {
                             outputs[name] = val;
-                            if (val is IEnumerable l && !(val is string)) DA.SetDataList(i, l);
-                            else DA.SetData(i, val);
+                            if (val is IEnumerable enumerable && !(val is string)) {
+                                bool isNested = false;
+                                foreach (var item in enumerable) {
+                                    if (item is IEnumerable && !(item is string)) {
+                                        isNested = true;
+                                    }
+                                    break;
+                                }
+                                if (isNested) {
+                                    var tree = new Grasshopper.DataTree<object>();
+                                    int pathIdx = 0;
+                                    foreach (var subList in enumerable) {
+                                        var path = new Grasshopper.Kernel.Data.GH_Path(pathIdx++);
+                                        if (subList is IEnumerable subEnum && !(subList is string)) {
+                                            foreach (var item in subEnum) {
+                                                tree.Add(item, path);
+                                            }
+                                        } else {
+                                            tree.Add(subList, path);
+                                        }
+                                    }
+                                    DA.SetDataTree(i, tree);
+                                } else {
+                                    DA.SetDataList(i, enumerable);
+                                }
+                            } else {
+                                DA.SetData(i, val);
+                            }
                         } else {
                             outputs[name] = null;
                         }
