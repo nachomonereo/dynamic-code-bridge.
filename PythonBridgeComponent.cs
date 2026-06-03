@@ -300,10 +300,10 @@ except Exception as e:
                             if (SyncParameters(_lastCode)) {
                                 Params.OnParametersChanged();
                                 this.OnAttributesChanged();
+                            } else {
+                                var doc = OnPingDocument();
+                                if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
                             }
-                            
-                            var doc = OnPingDocument();
-                            if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
                             return;
                         } else {
                             _statusText = "FILE MISSING";
@@ -327,8 +327,6 @@ except Exception as e:
 
                 if (SyncParameters(_lastCode)) {
                     this.OnAttributesChanged();
-                    var d = OnPingDocument();
-                    if (d != null) d.ScheduleSolution(5, x => this.ExpireSolution(false));
                     return;
                 }
 

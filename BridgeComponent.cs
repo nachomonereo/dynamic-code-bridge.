@@ -317,10 +317,10 @@ try {
                             if (SyncParameters(_lastCode)) {
                                 Params.OnParametersChanged();
                                 this.OnAttributesChanged();
+                            } else {
+                                var doc = OnPingDocument();
+                                if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
                             }
-                            
-                            var doc = OnPingDocument();
-                            if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
                             return;
                         } else {
                             _statusText = "FILE MISSING";
@@ -344,11 +344,6 @@ try {
 
                 if (SyncParameters(_lastCode)) {
                     this.OnAttributesChanged();
-                    // FIX: Avoid 'Expired during solution' by scheduling
-                    var doc = OnPingDocument();
-                    if (doc != null) {
-                        doc.ScheduleSolution(5, d => this.ExpireSolution(false));
-                    }
                     return;
                 }
 

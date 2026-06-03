@@ -1,6 +1,4 @@
 #! python3
-# venv: iaac_bridge
-# r: rhino-geometry, grasshopper-kernel
 
 """
 ===========================================================================
