@@ -757,11 +757,36 @@ try {
             var currentIn = Params.Input.Skip(startIdx).Select(p => p.Name).ToList();
             if (!newInNames.SequenceEqual(currentIn)) {
                 for (int i = Params.Input.Count - 1; i >= startIdx; i--) Params.UnregisterInputParameter(Params.Input[i]);
-                foreach (var name in newInNames) {
-                    var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = name, NickName = name, Access = GH_ParamAccess.item, Optional = true };
+                for (int i = 0; i < newInDefs.Count; i++) {
+                    var def = newInDefs[i];
+                    var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = def.Name, NickName = def.Name, Access = GH_ParamAccess.item, Optional = true };
                     Params.RegisterInputParam(p);
                 }
                 changed = true;
+            }
+
+            // Update Descriptions with range and type metadata
+            for (int i = 0; i < newInDefs.Count; i++) {
+                int paramIdx = startIdx + i;
+                if (paramIdx < Params.Input.Count) {
+                    var def = newInDefs[i];
+                    var param = Params.Input[paramIdx];
+                    if (def.Type == InputType.Slider) {
+                        param.Description = $"Numeric Range: {def.Min}..{def.Max} (Default: {def.Val}, Type: Double/Int)";
+                    } else if (def.Type == InputType.Boolean) {
+                        param.Description = "Boolean Toggle (Type: bool)";
+                    } else if (def.Type == InputType.Color) {
+                        param.Description = "Color Swatch (Type: System.Drawing.Color)";
+                    } else if (def.Type == InputType.Point) {
+                        param.Description = "Point Parameter (Type: Rhino.Geometry.Point3d)";
+                    } else if (def.Type == InputType.Plane) {
+                        param.Description = "Plane Parameter (Type: Rhino.Geometry.Plane)";
+                    } else if (def.Type == InputType.Text) {
+                        param.Description = "Text Parameter (Type: string)";
+                    } else {
+                        param.Description = "Generic Parameter";
+                    }
+                }
             }
 
             // 2. Check Outputs

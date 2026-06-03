@@ -37,6 +37,10 @@ TASK: Generate a script that [DESCRIBE YOUR GOAL HERE]"
 
 import Rhino.Geometry as rg
 
+# INPUT PARAMETERS TYPE REFERENCE:
+# - SetA: List of rg.Curve (First set of curves to intersect)
+# - SetB: List of rg.Curve (Second set of curves to intersect)
+
 # 1. Retrieve Input Safely
 Inputs = dict(Inputs)
 

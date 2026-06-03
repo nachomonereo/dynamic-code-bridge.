@@ -42,6 +42,10 @@ using System.Collections.Generic;
 using Rhino.Geometry;
 using Grasshopper.Kernel.Types;
 
+// INPUT PARAMETERS TYPE REFERENCE:
+// - Size: Int (Numeric Range: 1..50, Default: 10)
+// - Spacing: Double (Numeric Range: 1.0..20.0, Default: 5.0)
+
 // --- LIVE EXECUTION AREA ---
 
 // 1. Declare output variables at script scope (vital for Roslyn scripting outputs)
