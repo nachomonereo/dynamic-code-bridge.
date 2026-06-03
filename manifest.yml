@@ -5,7 +5,7 @@ authors:
   - Nacho Monereo
   - Robots Lab IAAC
 description: A professional live-coding bridge for Rhino 8 with Atomic Sync and Diagnostic Telemetry. Developed at IAAC Robots Lab.
-url: https://github.com/iaac/DynamicCodeBridge
+url: https://github.com/nachomonereo/dynamic-code-bridge
 keywords:
   - IAAC
   - Robots-Lab

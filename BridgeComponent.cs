@@ -166,12 +166,83 @@ try {
             Menu_AppendSeparator(menu);
 
             Menu_AppendItem(menu, "Export Code to File...", (s, e) => {
-                SaveFileDialog sfd = new SaveFileDialog { Filter = "C# Script|*.cs", Title = "Export & Link Master Template", FileName = "bridge_logic.cs" };
+                string shortId = this.InstanceGuid.ToString().Substring(0, 8);
+                SaveFileDialog sfd = new SaveFileDialog { 
+                    Filter = "C# Script|*.cs", 
+                    Title = "Export & Link Master Template", 
+                    FileName = $"bridge_logic_{shortId}.cs" 
+                };
                 if (sfd.ShowDialog() == DialogResult.OK) {
                     try {
-                        File.WriteAllText(sfd.FileName, _lastCode);
+                        string codeToExport = _lastCode;
+                        string header = @"/* 
+   🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.5.0
+   ===========================================================================
+   Bridge Component ID: {shortId}
+   ===========================================================================
+   
+   📖 INSTRUCTIONS:
+   1. LINK: Connect this file path to the 'P' input of the Bridge component.
+   2. SYNC: Save (Ctrl+S) in your editor and Grasshopper updates instantly.
+   3. LIBRARIES: Add '# r: library_name' at the very top to auto-install.
+   4. AUTO-DEBUGGING: If an error occurs, the Bridge generates a '.log' file. 
+      PROVIDE THIS LOG TO YOUR AI (ChatGPT/Gemini). It contains the stack trace 
+      and variable states needed to fix the code automatically.
+   
+   🤖 [ AI SYSTEM PROMPT - COPY & PASTE TO CHATGPT/GEMINI ]
+   ---------------------------------------------------------------------------
+   ""You are an expert Rhino/Grasshopper C# Developer. I am using the 
+   'Dynamic Code Bridge'. This system uses an external .cs file to control a 
+   Grasshopper component via meta-programming.
+   
+   CONTEXT FOR THIS FILE:
+   - This file is linked to the Grasshopper Component with ID: {shortId}
+   - The diagnostic log for this component is: bridge_status_{shortId}.log
+   
+   MANDATORY RULES FOR GENERATING CODE:
+   1. TAGS: Start the file with '// IN: Name1[slider], Name2[boolean]' and '// OUT: Name1, Name2'.
+      - Supported Input formats:
+        - `Name[min..max=val]` (e.g. `Radius[0.0..10.0=5.0]`) to create a number slider.
+        - `Name[boolean]` or `Name[toggle]` to create a boolean toggle.
+        - `Name[color]` or `Name[swatch]` to create a color swatch.
+        - `Name[point]` or `Name[pt]` to create a point parameter.
+        - `Name[plane]` or `Name[pl]` to create a plane parameter.
+        - `Name[text]` or `Name[string]` to create a text/string parameter.
+   2. DATA ACCESS: Use 'Convert.ToDouble(Inputs[""Name""].ToString())' for numbers.
+   3. TYPES: Use 'using Rhino.Geometry;' and 'using Grasshopper.Kernel.Types;'.
+   4. LISTS: Check if an input is 'IList' or 'IEnumerable' before iterating.
+   5. OUTPUTS: Assign results to variables matching your // OUT tags.
+   6. STABILITY: Wrap everything in a 'try-catch' block to feed the logger.""
+   ---------------------------------------------------------------------------
+*/
+
+// IN: Radius[0.0..10.0=5.0], Active[boolean], Color[color], Pt[point], Pl[plane], Msg[text]
+// OUT: MySphere, Status
+
+using System;
+using System.Collections.Generic;
+using Rhino.Geometry;
+using Grasshopper.Kernel.Types;
+
+try {
+    double r = (Inputs.ContainsKey(""Radius"") && Inputs[""Radius""] != null) 
+        ? Convert.ToDouble(Inputs[""Radius""].ToString()) : 5.0;
+
+    var MySphere = new Sphere(Point3d.Origin, Math.Max(0.1, r));
+
+    string Status = $""C# Bridge Ready | Component ID: {shortId} | Radius: {r:F2}"";
+
+} catch (Exception ex) {
+    throw new Exception(""Diagnostic Error: "" + ex.Message, ex);
+}
+".Replace("{shortId}", shortId);
+                        if (string.IsNullOrEmpty(_lastCode) || _lastCode.Contains("MASTER MANUAL")) {
+                            codeToExport = header;
+                        }
+                        File.WriteAllText(sfd.FileName, codeToExport);
                         _currentPath = sfd.FileName;
                         _isInternalized = false;
+                        _lastCode = codeToExport;
                         SetupWatcher(_currentPath);
                         this.OnAttributesChanged();
                         this.ExpireSolution(true);
@@ -427,33 +498,67 @@ try {
             } catch { }
         }
 
-        private struct SliderDef
+        private enum InputType
+        {
+            Generic,
+            Slider,
+            Boolean,
+            Color,
+            Point,
+            Plane,
+            Text
+        }
+
+        private struct InputDef
         {
             public string Name;
-            public bool IsSlider;
+            public InputType Type;
             public double Min;
             public double Max;
             public double Val;
             public int Decimals;
+            public Color ColorVal;
         }
 
-        private SliderDef ParseInputToken(string token)
+        private InputDef ParseInputToken(string token)
         {
-            var def = new SliderDef { Name = token, IsSlider = false };
+            var def = new InputDef { Name = token, Type = InputType.Generic };
             int bracketStart = token.IndexOf('[');
             int bracketEnd = token.IndexOf(']');
             if (bracketStart > 0 && bracketEnd > bracketStart)
             {
                 def.Name = token.Substring(0, bracketStart).Trim();
                 string spec = token.Substring(bracketStart + 1, bracketEnd - bracketStart - 1).Trim();
-                
-                if (spec.Equals("slider", StringComparison.OrdinalIgnoreCase))
+                string specLower = spec.ToLowerInvariant();
+
+                if (specLower == "slider")
                 {
-                    def.IsSlider = true;
+                    def.Type = InputType.Slider;
                     def.Min = 0.0;
                     def.Max = 1.0;
                     def.Val = 0.5;
                     def.Decimals = 2;
+                }
+                else if (specLower == "boolean" || specLower == "bool" || specLower == "toggle")
+                {
+                    def.Type = InputType.Boolean;
+                }
+                else if (specLower == "color" || specLower == "colour" || specLower == "swatch")
+                {
+                    def.Type = InputType.Color;
+                    def.ColorVal = Color.DeepSkyBlue;
+                }
+                else if (specLower == "point" || specLower == "pt")
+                {
+                    def.Type = InputType.Point;
+                }
+                else if (specLower == "plane" || specLower == "pl")
+                {
+                    def.Type = InputType.Plane;
+                }
+                else if (specLower == "text" || specLower == "txt" || specLower == "string")
+                {
+                    def.Type = InputType.Text;
                 }
                 else
                 {
@@ -498,7 +603,7 @@ try {
                             val = (min + max) / 2.0;
                         }
 
-                        def.IsSlider = true;
+                        def.Type = InputType.Slider;
                         def.Min = min;
                         def.Max = max;
                         def.Val = val;
@@ -506,7 +611,7 @@ try {
                     }
                     catch
                     {
-                        def.IsSlider = true;
+                        def.Type = InputType.Slider;
                         def.Min = 0.0;
                         def.Max = 1.0;
                         def.Val = 0.5;
@@ -524,17 +629,17 @@ try {
             return s.Length - dotIdx - 1;
         }
 
-        private void CreateSlidersForInputs(List<SliderDef> sliderDefs)
+        private void CreateInputsForDefs(List<InputDef> inputDefs)
         {
             var doc = OnPingDocument();
             if (doc == null) return;
 
             int startIdx = (_isInternalized || Params.Input.Count == 0 || Params.Input[0].Name != "File Path") ? 0 : 1;
 
-            for (int i = 0; i < sliderDefs.Count; i++)
+            for (int i = 0; i < inputDefs.Count; i++)
             {
-                var def = sliderDefs[i];
-                if (!def.IsSlider) continue;
+                var def = inputDefs[i];
+                if (def.Type == InputType.Generic) continue;
 
                 int paramIdx = startIdx + i;
                 if (paramIdx >= Params.Input.Count) continue;
@@ -544,28 +649,82 @@ try {
 
                 if (param.SourceCount == 0)
                 {
-                    var slider = new GH_NumberSlider();
-                    slider.CreateAttributes();
-                    slider.NickName = def.Name;
-                    slider.Name = def.Name;
-                    
-                    slider.Slider.Minimum = (decimal)def.Min;
-                    slider.Slider.Maximum = (decimal)def.Max;
-                    slider.Slider.DecimalPlaces = def.Decimals;
-                    
-                    if (def.Decimals == 0)
-                        slider.Slider.Type = Grasshopper.GUI.Base.GH_SliderAccuracy.Integer;
-                    else
-                        slider.Slider.Type = Grasshopper.GUI.Base.GH_SliderAccuracy.Float;
-
-                    slider.SetSliderValue((decimal)def.Val);
+                    IGH_DocumentObject newObj = null;
 
                     float x = this.Attributes.Bounds.Left - 180;
                     float y = this.Attributes.Bounds.Top + (paramIdx - startIdx) * 30 + 10;
-                    slider.Attributes.Pivot = new PointF(x, y);
 
-                    doc.AddObject(slider, false);
-                    param.AddSource(slider);
+                    if (def.Type == InputType.Slider)
+                    {
+                        var slider = new GH_NumberSlider();
+                        slider.CreateAttributes();
+                        slider.NickName = def.Name;
+                        slider.Name = def.Name;
+                        slider.Slider.Minimum = (decimal)def.Min;
+                        slider.Slider.Maximum = (decimal)def.Max;
+                        slider.Slider.DecimalPlaces = def.Decimals;
+                        if (def.Decimals == 0)
+                            slider.Slider.Type = Grasshopper.GUI.Base.GH_SliderAccuracy.Integer;
+                        else
+                            slider.Slider.Type = Grasshopper.GUI.Base.GH_SliderAccuracy.Float;
+                        slider.SetSliderValue((decimal)def.Val);
+                        
+                        newObj = slider;
+                    }
+                    else if (def.Type == InputType.Boolean)
+                    {
+                        var toggle = new GH_BooleanToggle();
+                        toggle.CreateAttributes();
+                        toggle.NickName = def.Name;
+                        toggle.Name = def.Name;
+                        toggle.Value = false;
+                        
+                        newObj = toggle;
+                    }
+                    else if (def.Type == InputType.Color)
+                    {
+                        var swatch = new GH_ColourSwatch();
+                        swatch.CreateAttributes();
+                        swatch.NickName = def.Name;
+                        swatch.Name = def.Name;
+                        swatch.SwatchColour = def.ColorVal;
+                        
+                        newObj = swatch;
+                    }
+                    else if (def.Type == InputType.Point)
+                    {
+                        var ptParam = new Grasshopper.Kernel.Parameters.Param_Point();
+                        ptParam.CreateAttributes();
+                        ptParam.NickName = def.Name;
+                        ptParam.Name = def.Name;
+                        
+                        newObj = ptParam;
+                    }
+                    else if (def.Type == InputType.Plane)
+                    {
+                        var plParam = new Grasshopper.Kernel.Parameters.Param_Plane();
+                        plParam.CreateAttributes();
+                        plParam.NickName = def.Name;
+                        plParam.Name = def.Name;
+                        
+                        newObj = plParam;
+                    }
+                    else if (def.Type == InputType.Text)
+                    {
+                        var txtParam = new Grasshopper.Kernel.Parameters.Param_String();
+                        txtParam.CreateAttributes();
+                        txtParam.NickName = def.Name;
+                        txtParam.Name = def.Name;
+                        
+                        newObj = txtParam;
+                    }
+
+                    if (newObj != null)
+                    {
+                        newObj.Attributes.Pivot = new PointF(x, y);
+                        doc.AddObject(newObj, false);
+                        param.AddSource((IGH_Param)newObj);
+                    }
                 }
             }
         }
@@ -573,7 +732,7 @@ try {
         private bool SyncParameters(string code)
         {
             var lines = (code ?? "").Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            var newInDefs = new List<SliderDef>();
+            var newInDefs = new List<InputDef>();
             var newOut = new List<string>();
 
             foreach (var line in lines) {
@@ -616,10 +775,10 @@ try {
                 changed = true;
             }
 
-            // Check if any sliders need to be created
+            // Check if any inputs need to be created
             bool needsSliders = false;
             for (int i = 0; i < newInDefs.Count; i++) {
-                if (newInDefs[i].IsSlider) {
+                if (newInDefs[i].Type != InputType.Generic) {
                     int paramIdx = startIdx + i;
                     if (paramIdx < Params.Input.Count && Params.Input[paramIdx].SourceCount == 0) {
                         needsSliders = true;
@@ -631,7 +790,7 @@ try {
                 var doc = OnPingDocument();
                 if (doc != null) {
                     doc.ScheduleSolution(5, d => {
-                        CreateSlidersForInputs(newInDefs);
+                        CreateInputsForDefs(newInDefs);
                         this.ExpireSolution(false);
                     });
                 }

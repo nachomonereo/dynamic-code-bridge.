@@ -1,47 +1,55 @@
-# r: numpy
-# !python3
+#! python3
+# venv: iaac_bridge
+# r: rhino-geometry, grasshopper-kernel
 
-# IN: SetA, SetB
-# OUT: Intersections, Status
+"""
+===========================================================================
+DYNAMIC PYTHON BRIDGE - MASTER MANUAL & AI SYSTEM PROMPT v4.0
+===========================================================================
+
+INSTRUCTIONS:
+1. ENVIRONMENT: The # venv and # r headers manage Rhino 8 CPython.
+2. AI LOOP: Copy the prompt below to ChatGPT/Gemini to generate code.
+
+DEBUGGING:
+This bridge generates a unique log: 'bridge_status_[ID].log'.
+If you get an error, provide this log to your AI Assistant.
+The AI will read the stack trace and fix the logic for you.
+
+---------------------------------------------------------------------------
+[ COPY-PASTE THIS SYSTEM PROMPT TO YOUR AI ASSISTANT ]
+---------------------------------------------------------------------------
+"You are a Rhino/Grasshopper Python Expert. I am using the 'Dynamic Python 
+Bridge' in Rhino 8 (CPython). This bridge syncs this file to GH.
+
+RULES FOR GENERATING CODE:
+1. PARAMETERS: Use # IN: Name or # OUT: Name at the top.
+2. LIBRARIES: Import 'Rhino.Geometry as rg'.
+3. DATA ACCESS: Use the 'Inputs' dictionary.
+4. TYPE CHECKING: Check for GH types (e.g., .Value) or raw Python types.
+5. OUTPUTS: Define variables matching your # OUT tags to return data.
+
+TASK: Generate a script that [DESCRIBE YOUR GOAL HERE]"
+---------------------------------------------------------------------------
+"""
+
+# IN: Radius
+# OUT: MySphere
 
 import Rhino.Geometry as rg
 
-# 1. COMPATIBILITY LAYER
-Inputs = dict(Inputs)
+# 1. Retrieve Input (AI Pattern)
+r = 1.0
+if 'Radius' in Inputs and Inputs['Radius'] is not None:
+    try:
+        # Robust unwrapping of GH_Number or float
+        r = float(Inputs['Radius'].Value) if hasattr(Inputs['Radius'], 'Value') else float(Inputs['Radius'])
+    except:
+        pass
 
-try:
-    # 2. DATA RECOVERY
-    def to_list(val):
-        if val is None: return []
-        if isinstance(val, (str, rg.GeometryBase, rg.Point3d, rg.Vector3d)):
-            return [val]
-        if hasattr(val, "__iter__"):
-            return list(val)
-        return [val]
+# 2. Logic (AI Pattern)
+MySphere = rg.Sphere(rg.Point3d.Origin, max(0.1, r))
 
-    list_a = to_list(Inputs.get('SetA'))
-    list_b = to_list(Inputs.get('SetB'))
-
-    pts = []
-    
-    # 3. LOGIC: Doble bucle de intersección
-    for crv_a in list_a:
-        if not isinstance(crv_a, rg.Curve): continue
-        for crv_b in list_b:
-            if not isinstance(crv_b, rg.Curve): continue
-            
-            # Buscamos puntos de cruce
-            events = rg.Intersect.Intersection.CurveCurve(crv_a, crv_b, 0.01, 0.01)
-            if events:
-                for ev in events:
-                    pts.append(ev.PointA)
-
-    Intersections = pts
-    Status = "Found {0} intersection points.".format(len(pts))
-
-except Exception as e:
-    # Diagnostic Log will capture this
-    raise e
-
-print(Status)
-"Status: Ready"
+# 3. Print execution info
+print(f"Python Bridge: Sphere created with R={r:.2f}")
+'Python Bridge Ready'

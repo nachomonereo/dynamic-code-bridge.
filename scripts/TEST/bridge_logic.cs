@@ -1,36 +1,60 @@
-// IN: Size, Spacing
-// OUT: MatrixPoints, Status
+/* 
+   ===========================================================================
+   DYNAMIC C# BRIDGE - MASTER MANUAL & AI SYSTEM PROMPT v4.0
+   ===========================================================================
+   
+   INSTRUCTIONS:
+   1. LINK: Connect this file path to the 'P' input of the Bridge component.
+   2. SYNC: Save this file (Ctrl+S) and Grasshopper updates instantly.
+   3. AI LOOP: Copy the prompt below to ChatGPT/Gemini to generate code.
+   
+   DEBUGGING:
+   This bridge generates a unique log: 'bridge_status_[ID].log'.
+   If you get an error, provide this log to your AI Assistant.
+   The AI will read the stack trace and fix the logic for you.
+   
+   ---------------------------------------------------------------------------
+   [ COPY-PASTE THIS SYSTEM PROMPT TO YOUR AI ASSISTANT ]
+   ---------------------------------------------------------------------------
+   "You are an expert Rhino/Grasshopper C# Developer. I am using the 'Dynamic 
+   Code Bridge'. This system uses an external .cs file to control a 
+   Grasshopper component via meta-programming.
+   
+   RULES FOR GENERATING CODE:
+   1. PARAMETERS: Start the file with tags: // IN: Name or // OUT: Name.
+   2. LIBRARIES: Use 'using Rhino.Geometry;' and 'using Grasshopper.Kernel.Types;'.
+   3. DATA ACCESS: Use the 'Inputs["Name"]' dictionary to read values.
+   4. TYPE CHECKING: Use 'is GH_Number', 'is GH_Point', etc., to unwrap data.
+   5. OUTPUTS: Assign results to variables matching your // OUT tags.
+   
+   TASK: Generate a script that [DESCRIBE YOUR GOAL HERE]"
+   ---------------------------------------------------------------------------
+*/
+
+// IN: Radius
+// OUT: MySphere
 
 using System;
 using System.Collections.Generic;
 using Rhino.Geometry;
 using Grasshopper.Kernel.Types;
 
-try {
-    // 1. Inputs
-    int n = (Inputs.ContainsKey("Size") && Inputs["Size"] != null) 
-        ? Convert.ToInt32(Inputs["Size"].ToString()) : 10;
-        
-    double s = (Inputs.ContainsKey("Spacing") && Inputs["Spacing"] != null)
-        ? Convert.ToDouble(Inputs["Spacing"].ToString()) : 5.0;
+// --- LIVE EXECUTION AREA ---
 
-    // 2. Logic: Create a nested list structure
-    List<List<Point3d>> grid = new List<List<Point3d>>();
-    
-    for (int i = 0; i < n; i++) {
-        List<Point3d> row = new List<Point3d>();
-        for (int j = 0; j < n; j++) {
-            row.Add(new Point3d(i * s, j * s, 0));
-        }
-        grid.Add(row);
-    }
+double r = 1.0;
 
-    // 3. Outputs
-    var MatrixPoints = grid;
-    var Status = "C# Iteration 10: Matrix " + n + "x" + n + " generated.";
-
-} catch (Exception ex) {
-    throw new Exception("C# Matrix Error: " + ex.Message, ex);
+// 1. Retrieve & Unwrap Input (AI Pattern)
+if (Inputs.ContainsKey("Radius") && Inputs["Radius"] is GH_Number ghn) {
+    r = ghn.Value;
+} else if (Inputs.ContainsKey("Radius") && Inputs["Radius"] != null) {
+    try { r = Convert.ToDouble(Inputs["Radius"]); } catch { }
 }
 
-"Iteration 10: Stable"
+// 2. Logic (AI Pattern)
+Sphere sphere = new Sphere(Point3d.Origin, Math.Max(0.1, r));
+
+// 3. Assign to Output (Matches // OUT: MySphere)
+var MySphere = sphere;
+
+// Return execution info
+$"C# Bridge: Generated Sphere with Radius {r:F2}"
