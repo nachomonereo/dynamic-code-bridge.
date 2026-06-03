@@ -10,7 +10,7 @@
   </PropertyGroup>
   
   <PropertyGroup>
-    <Version>1.4.0</Version>
+    <Version>1.5.0</Version>
     <Authors>Nacho Monereo; Robots Lab IAAC</Authors>
     <Company>IAAC - Robots Lab</Company>
     <Description>Dynamic Code Bridge for Rhino 8 with Diagnostic Telemetry. Developed at IAAC Robots Lab.</Description>
@@ -26,6 +26,13 @@
   <ItemGroup>
     <PackageReference Include="Grasshopper" Version="8.0.23304.9001" ExcludeAssets="runtime" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="4.8.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <Reference Include="Rhino.Runtime.Code">
+      <HintPath>C:\Program Files\Rhino 8\System\Rhino.Runtime.Code.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

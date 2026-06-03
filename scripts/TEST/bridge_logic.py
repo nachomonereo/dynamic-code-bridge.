@@ -11,12 +11,16 @@ Inputs = dict(Inputs)
 
 try:
     # 2. DATA RECOVERY
-    # Validamos que lo que entra sean listas de curvas
-    list_a = Inputs.get('SetA')
-    list_b = Inputs.get('SetB')
-    
-    if not isinstance(list_a, list): list_a = [list_a] if list_a else []
-    if not isinstance(list_b, list): list_b = [list_b] if list_b else []
+    def to_list(val):
+        if val is None: return []
+        if isinstance(val, (str, rg.GeometryBase, rg.Point3d, rg.Vector3d)):
+            return [val]
+        if hasattr(val, "__iter__"):
+            return list(val)
+        return [val]
+
+    list_a = to_list(Inputs.get('SetA'))
+    list_b = to_list(Inputs.get('SetB'))
 
     pts = []
     
@@ -30,7 +34,7 @@ try:
             events = rg.Intersect.Intersection.CurveCurve(crv_a, crv_b, 0.01, 0.01)
             if events:
                 for ev in events:
-                    pts.Add(ev.PointA)
+                    pts.append(ev.PointA)
 
     Intersections = pts
     Status = "Found {0} intersection points.".format(len(pts))

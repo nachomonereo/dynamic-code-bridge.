@@ -16,6 +16,7 @@ using GH_IO.Serialization;
 using Rhino.Geometry;
 using Microsoft.CodeAnalysis.Scripting;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
+using Grasshopper.Kernel.Special;
 
 namespace DynamicCodeBridge
 {
@@ -329,19 +330,23 @@ try {
                     DA.SetDataList(0, report);
 
                     // Dynamic Outputs get their variable values
+                    var outputs = new Dictionary<string, object>();
                     for (int i = 1; i < Params.Output.Count; i++) {
                         var param = Params.Output[i];
                         try {
                             var variable = state.Variables.FirstOrDefault(v => v.Name == param.Name);
                             if (variable != null) {
                                 object val = variable.Value;
+                                outputs[param.Name] = val;
                                 if (val is IEnumerable && !(val is string)) DA.SetDataList(i, (IEnumerable)val);
                                 else DA.SetData(i, val);
+                            } else {
+                                outputs[param.Name] = null;
                             }
                         } catch { }
                     }
 
-                    if (!_isInternalized) ReportStatus("SUCCESS", "Ready", _currentPath, globals.Inputs);
+                    if (!_isInternalized) ReportStatus("SUCCESS", "Ready", _currentPath, globals.Inputs, outputs);
                 }
             }
             catch (Exception ex) 
@@ -354,7 +359,7 @@ try {
                     "Sync: " + DateTime.Now.ToLongTimeString()
                 };
                 DA.SetDataList(0, errReport);
-                if (!_isInternalized) ReportStatus("ERROR", ex.Message, _currentPath, null, ex.StackTrace);
+                if (!_isInternalized) ReportStatus("ERROR", ex.Message, _currentPath, null, null, ex.StackTrace);
                 _cachedScript = null; 
             }
         }
@@ -370,7 +375,7 @@ try {
             return "";
         }
 
-        private void ReportStatus(string status, string message, string scriptPath, Dictionary<string, object> inputs = null, string stackTrace = null)
+        private void ReportStatus(string status, string message, string scriptPath, Dictionary<string, object> inputs = null, Dictionary<string, object> outputs = null, string stackTrace = null)
         {
             try {
                 if (string.IsNullOrEmpty(scriptPath)) return;
@@ -402,6 +407,16 @@ try {
                         sw.WriteLine("---------------------------------------------------------------------------");
                     }
 
+                    if (outputs != null) {
+                        sw.WriteLine("OUTPUTS STATE SNAPSHOT:");
+                        foreach(var kvp in outputs) {
+                            string valStr = kvp.Value?.ToString() ?? "NULL";
+                            if (valStr.Length > 100) valStr = valStr.Substring(0, 97) + "...";
+                            sw.WriteLine($"- {kvp.Key}: {valStr} ({kvp.Value?.GetType().Name ?? "N/A"})");
+                        }
+                        sw.WriteLine("---------------------------------------------------------------------------");
+                    }
+
                     sw.WriteLine("EXECUTED SOURCE CODE:");
                     string[] codeLines = _lastCode.Split('\n');
                     for (int i = 0; i < codeLines.Length; i++) {
@@ -412,28 +427,178 @@ try {
             } catch { }
         }
 
+        private struct SliderDef
+        {
+            public string Name;
+            public bool IsSlider;
+            public double Min;
+            public double Max;
+            public double Val;
+            public int Decimals;
+        }
+
+        private SliderDef ParseInputToken(string token)
+        {
+            var def = new SliderDef { Name = token, IsSlider = false };
+            int bracketStart = token.IndexOf('[');
+            int bracketEnd = token.IndexOf(']');
+            if (bracketStart > 0 && bracketEnd > bracketStart)
+            {
+                def.Name = token.Substring(0, bracketStart).Trim();
+                string spec = token.Substring(bracketStart + 1, bracketEnd - bracketStart - 1).Trim();
+                
+                if (spec.Equals("slider", StringComparison.OrdinalIgnoreCase))
+                {
+                    def.IsSlider = true;
+                    def.Min = 0.0;
+                    def.Max = 1.0;
+                    def.Val = 0.5;
+                    def.Decimals = 2;
+                }
+                else
+                {
+                    try
+                    {
+                        double min = 0;
+                        double max = 1;
+                        double val = 0.5;
+                        int decimals = 0;
+
+                        string rangePart = spec;
+                        string valPart = "";
+
+                        int eqIdx = spec.IndexOf('=');
+                        if (eqIdx >= 0)
+                        {
+                            rangePart = spec.Substring(0, eqIdx).Trim();
+                            valPart = spec.Substring(eqIdx + 1).Trim();
+                        }
+
+                        int dotDotIdx = rangePart.IndexOf("..");
+                        if (dotDotIdx >= 0)
+                        {
+                            string minStr = rangePart.Substring(0, dotDotIdx).Trim();
+                            string maxStr = rangePart.Substring(dotDotIdx + 2).Trim();
+                            
+                            double.TryParse(minStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out min);
+                            double.TryParse(maxStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out max);
+
+                            int minDec = GetDecimalPlaces(minStr);
+                            int maxDec = GetDecimalPlaces(maxStr);
+                            decimals = Math.Max(minDec, maxDec);
+                        }
+
+                        if (!string.IsNullOrEmpty(valPart))
+                        {
+                            double.TryParse(valPart, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out val);
+                            decimals = Math.Max(decimals, GetDecimalPlaces(valPart));
+                        }
+                        else
+                        {
+                            val = (min + max) / 2.0;
+                        }
+
+                        def.IsSlider = true;
+                        def.Min = min;
+                        def.Max = max;
+                        def.Val = val;
+                        def.Decimals = decimals;
+                    }
+                    catch
+                    {
+                        def.IsSlider = true;
+                        def.Min = 0.0;
+                        def.Max = 1.0;
+                        def.Val = 0.5;
+                        def.Decimals = 2;
+                    }
+                }
+            }
+            return def;
+        }
+
+        private static int GetDecimalPlaces(string s)
+        {
+            int dotIdx = s.IndexOf('.');
+            if (dotIdx < 0) return 0;
+            return s.Length - dotIdx - 1;
+        }
+
+        private void CreateSlidersForInputs(List<SliderDef> sliderDefs)
+        {
+            var doc = OnPingDocument();
+            if (doc == null) return;
+
+            int startIdx = (_isInternalized || Params.Input.Count == 0 || Params.Input[0].Name != "File Path") ? 0 : 1;
+
+            for (int i = 0; i < sliderDefs.Count; i++)
+            {
+                var def = sliderDefs[i];
+                if (!def.IsSlider) continue;
+
+                int paramIdx = startIdx + i;
+                if (paramIdx >= Params.Input.Count) continue;
+
+                var param = Params.Input[paramIdx];
+                if (param.Name != def.Name) continue;
+
+                if (param.SourceCount == 0)
+                {
+                    var slider = new GH_NumberSlider();
+                    slider.CreateAttributes();
+                    slider.NickName = def.Name;
+                    slider.Name = def.Name;
+                    
+                    slider.Slider.Minimum = (decimal)def.Min;
+                    slider.Slider.Maximum = (decimal)def.Max;
+                    slider.Slider.DecimalPlaces = def.Decimals;
+                    
+                    if (def.Decimals == 0)
+                        slider.Slider.Type = Grasshopper.GUI.Base.GH_SliderAccuracy.Integer;
+                    else
+                        slider.Slider.Type = Grasshopper.GUI.Base.GH_SliderAccuracy.Float;
+
+                    slider.SetSliderValue((decimal)def.Val);
+
+                    float x = this.Attributes.Bounds.Left - 180;
+                    float y = this.Attributes.Bounds.Top + (paramIdx - startIdx) * 30 + 10;
+                    slider.Attributes.Pivot = new PointF(x, y);
+
+                    doc.AddObject(slider, false);
+                    param.AddSource(slider);
+                }
+            }
+        }
+
         private bool SyncParameters(string code)
         {
             var lines = (code ?? "").Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            var newIn = new List<string>();
+            var newInDefs = new List<SliderDef>();
             var newOut = new List<string>();
 
             foreach (var line in lines) {
                 string t = line.Trim();
-                if (t.StartsWith("// IN:") || t.StartsWith("# IN:")) 
-                    newIn.AddRange(t.Split(':')[1].Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)));
-                if (t.StartsWith("// OUT:") || t.StartsWith("# OUT:")) 
+                if (t.StartsWith("// IN:") || t.StartsWith("# IN:")) {
+                    var parts = t.Split(':')[1].Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s));
+                    foreach (var part in parts) {
+                        newInDefs.Add(ParseInputToken(part));
+                    }
+                }
+                if (t.StartsWith("// OUT:") || t.StartsWith("# OUT:")) {
                     newOut.AddRange(t.Split(':')[1].Split(',').Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)));
+                }
             }
+
+            var newInNames = newInDefs.Select(d => d.Name).ToList();
 
             bool changed = false;
             int startIdx = (_isInternalized || Params.Input.Count == 0 || Params.Input[0].Name != "File Path") ? 0 : 1;
 
             // 1. Check Inputs
             var currentIn = Params.Input.Skip(startIdx).Select(p => p.Name).ToList();
-            if (!newIn.SequenceEqual(currentIn)) {
+            if (!newInNames.SequenceEqual(currentIn)) {
                 for (int i = Params.Input.Count - 1; i >= startIdx; i--) Params.UnregisterInputParameter(Params.Input[i]);
-                foreach (var name in newIn) {
+                foreach (var name in newInNames) {
                     var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = name, NickName = name, Access = GH_ParamAccess.item, Optional = true };
                     Params.RegisterInputParam(p);
                 }
@@ -451,7 +616,28 @@ try {
                 changed = true;
             }
 
-            return changed;
+            // Check if any sliders need to be created
+            bool needsSliders = false;
+            for (int i = 0; i < newInDefs.Count; i++) {
+                if (newInDefs[i].IsSlider) {
+                    int paramIdx = startIdx + i;
+                    if (paramIdx < Params.Input.Count && Params.Input[paramIdx].SourceCount == 0) {
+                        needsSliders = true;
+                    }
+                }
+            }
+
+            if (changed || needsSliders) {
+                var doc = OnPingDocument();
+                if (doc != null) {
+                    doc.ScheduleSolution(5, d => {
+                        CreateSlidersForInputs(newInDefs);
+                        this.ExpireSolution(false);
+                    });
+                }
+            }
+
+            return changed || needsSliders;
         }
 
         public bool CanInsertParameter(GH_ParameterSide side, int index) => false;
