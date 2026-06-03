@@ -47,6 +47,10 @@ def get_num(key, default):
     if val is None: return default
     return val.Value if hasattr(val, 'Value') else val
 
+# Initialize outputs
+MySphere = None
+Status = None
+
 try:
     r = float(get_num('Radius', 5.0))
     

@@ -224,13 +224,18 @@ using System.Collections.Generic;
 using Rhino.Geometry;
 using Grasshopper.Kernel.Types;
 
+// --- LIVE EXECUTION AREA ---
+
+object MySphere = null;
+object Status = null;
+
 try {
     double r = (Inputs.ContainsKey(""Radius"") && Inputs[""Radius""] != null) 
         ? Convert.ToDouble(Inputs[""Radius""].ToString()) : 5.0;
 
-    var MySphere = new Sphere(Point3d.Origin, Math.Max(0.1, r));
+    MySphere = new Sphere(Point3d.Origin, Math.Max(0.1, r));
 
-    string Status = $""C# Bridge Ready | Component ID: {shortId} | Radius: {r:F2}"";
+    Status = $""C# Bridge Ready | Component ID: {shortId} | Radius: {r:F2}"";
 
 } catch (Exception ex) {
     throw new Exception(""Diagnostic Error: "" + ex.Message, ex);

@@ -222,17 +222,20 @@ def get_num(key, default):
     if val is None: return default
     return val.Value if hasattr(val, 'Value') else val
 
+# 2. LIVE EXECUTION AREA
+MySphere = None
+Status = None
+
 try:
-    # 2. INPUT RECOVERY
+    # INPUT RECOVERY
     r = float(get_num('Radius', 5.0))
 
-    # 3. GEOMETRY LOGIC
+    # GEOMETRY LOGIC
     MySphere = rg.Sphere(rg.Point3d.Origin, max(0.1, r))
 
-    # 4. STATUS REPORT
+    # STATUS REPORT
     Status = 'Python Ready | Component ID: {0} | Radius: {1:.2f}'.format('{shortId}', r)
     print(Status)
-    'Status: OK'
 
 except Exception as e:
     raise e

@@ -27,6 +27,8 @@
    3. DATA ACCESS: Use the 'Inputs["Name"]' dictionary to read values.
    4. TYPE CHECKING: Use 'is GH_Number', 'is GH_Point', etc., to unwrap data.
    5. OUTPUTS: Assign results to variables matching your // OUT tags.
+      IMPORTANT: Declare output variables at the top-level script scope (outside
+      any try-catch block) so they can be captured by the script engine.
    
    TASK: Generate a script that [DESCRIBE YOUR GOAL HERE]"
    ---------------------------------------------------------------------------
@@ -42,14 +44,50 @@ using Grasshopper.Kernel.Types;
 
 // --- LIVE EXECUTION AREA ---
 
+// 1. Declare output variables at script scope (vital for Roslyn scripting outputs)
+object MySphere = null;
+object Status = null;
+
 try {
-    double r = (Inputs.ContainsKey("Radius") && Inputs["Radius"] != null) 
-        ? Convert.ToDouble(Inputs["Radius"].ToString()) : 5.0;
+    // 2. Retrieve & Unwrap Inputs safely
+    double radius = 5.0;
+    if (Inputs.ContainsKey("Radius") && Inputs["Radius"] != null) {
+        radius = Convert.ToDouble(Inputs["Radius"].ToString());
+    }
 
-    var MySphere = new Sphere(Point3d.Origin, Math.Max(0.1, r));
+    bool active = true;
+    if (Inputs.ContainsKey("Active") && Inputs["Active"] != null) {
+        if (Inputs["Active"] is bool b) active = b;
+        else if (Inputs["Active"] is GH_Boolean ghb) active = ghb.Value;
+        else bool.TryParse(Inputs["Active"].ToString(), out active);
+    }
 
-    string Status = $"C# Bridge Ready | Radius: {r:F2}";
+    Point3d center = Point3d.Origin;
+    if (Inputs.ContainsKey("Pt") && Inputs["Pt"] != null) {
+        if (Inputs["Pt"] is Point3d p) center = p;
+        else if (Inputs["Pt"] is GH_Point ghp) center = ghp.Value;
+    }
+
+    Plane plane = Plane.WorldXY;
+    if (Inputs.ContainsKey("Pl") && Inputs["Pl"] != null) {
+        if (Inputs["Pl"] is Plane pl) plane = pl;
+        else if (Inputs["Pl"] is GH_Plane ghpl) plane = ghpl.Value;
+    }
+
+    string msg = "Hello from C# Bridge!";
+    if (Inputs.ContainsKey("Msg") && Inputs["Msg"] != null) {
+        msg = Inputs["Msg"].ToString();
+    }
+
+    // 3. Geometry logic
+    if (active) {
+        MySphere = new Sphere(center, Math.Max(0.1, radius));
+        Status = $"C# Bridge Active | Sphere created at {center} with Radius: {radius:F2} | Msg: {msg}";
+    } else {
+        MySphere = null;
+        Status = "C# Bridge Inactive";
+    }
 
 } catch (Exception ex) {
-    throw new Exception("Diagnostic Error: " + ex.Message, ex);
+    throw new Exception("Execution Error: " + ex.Message, ex);
 }
