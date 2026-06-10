@@ -1,6 +1,6 @@
 # DynamicCodeBridge v1.7.0
 ### Professional Live-Coding Bridge for Rhino 8 & Grasshopper
-**Developed by Nacho Monereo | IAAC Robots Lab**
+**Developed by Nacho Monereo | [MRAC-IAAC](https://github.com/MRAC-IAAC) Robots Lab**
 
 DynamicCodeBridge is a high-performance, real-time sync system linking external code files (`.cs`, `.py`) directly to Grasshopper. It enables you to write script logic inside professional external IDEs and instantly run, visualize, and debug it on the Grasshopper canvas.
 
@@ -95,5 +95,5 @@ Now, your Grasshopper file is **fully portable** and self-contained! Anyone with
 The **Institute for Advanced Architecture of Catalonia (IAAC)** is a center for research, education, and development at the intersection of architecture, robotics, and digital fabrication.
 
 **Developer:** Nacho Monereo
-**Laboratory:** IAAC Robots Lab
+**Laboratory:** [MRAC-IAAC](https://github.com/MRAC-IAAC) (Master in Robotics and Advanced Construction) | IAAC Robots Lab
 
