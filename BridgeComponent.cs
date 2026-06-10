@@ -208,11 +208,13 @@ try {
         - `Name[point]` or `Name[pt]` to create a point parameter.
         - `Name[plane]` or `Name[pl]` to create a plane parameter.
         - `Name[text]` or `Name[string]` to create a text/string parameter.
-   2. DATA ACCESS: Use 'Convert.ToDouble(Inputs[""Name""].ToString())' for numbers.
-   3. TYPES: Use 'using Rhino.Geometry;' and 'using Grasshopper.Kernel.Types;'.
-   4. LISTS: Check if an input is 'IList' or 'IEnumerable' before iterating.
-   5. OUTPUTS: Assign results to variables matching your // OUT tags.
-   6. STABILITY: Wrap everything in a 'try-catch' block to feed the logger.""
+        - UI is generated manually by right-clicking the component and selecting 'Generate Missing Sliders'.
+   2. LIBRARIES: You can auto-install NuGet packages by adding `# r: package_name` at the very top.
+   3. DATA ACCESS: Use 'Convert.ToDouble(Inputs[""Name""].ToString())' for numbers.
+   4. TYPES: Use 'using Rhino.Geometry;' and 'using Grasshopper.Kernel.Types;'.
+   5. LISTS: Check if an input is 'IList' or 'IEnumerable' before iterating.
+   6. OUTPUTS: Assign results to variables matching your // OUT tags.
+   7. STABILITY: Wrap everything in a 'try-catch' block to feed the logger.""
    ---------------------------------------------------------------------------
 */
 
@@ -272,6 +274,25 @@ try {
             Menu_AppendItem(menu, "Force Recompile (Reset Engine)", (s, e) => {
                 _cachedScript = null;
                 _compiledCode = "";
+                this.ExpireSolution(true);
+            });
+
+            Menu_AppendSeparator(menu);
+
+            Menu_AppendItem(menu, "Generate Missing Sliders/Inputs", (s, e) => {
+                if (string.IsNullOrEmpty(_lastCode)) return;
+                var lines = _lastCode.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                var newInDefs = new List<InputDef>();
+                foreach (var line in lines) {
+                    string t = line.Trim();
+                    if (t.StartsWith("// IN:") || t.StartsWith("# IN:")) {
+                        var parts = t.Split(':')[1].Split(',').Select(part => part.Trim()).Where(part => !string.IsNullOrEmpty(part));
+                        foreach (var part in parts) {
+                            newInDefs.Add(ParseInputToken(part));
+                        }
+                    }
+                }
+                CreateInputsForDefs(newInDefs);
                 this.ExpireSolution(true);
             });
         }
@@ -782,11 +803,18 @@ try {
             // 1. Check Inputs
             var currentIn = Params.Input.Skip(startIdx).Select(p => p.Name).ToList();
             if (!newInNames.SequenceEqual(currentIn)) {
-                for (int i = Params.Input.Count - 1; i >= startIdx; i--) Params.UnregisterInputParameter(Params.Input[i]);
+                for (int i = Params.Input.Count - 1; i >= startIdx; i--) {
+                    if (!newInNames.Contains(Params.Input[i].Name)) {
+                        Params.UnregisterInputParameter(Params.Input[i]);
+                    }
+                }
+                var currentInNow = Params.Input.Skip(startIdx).Select(p => p.Name).ToList();
                 for (int i = 0; i < newInDefs.Count; i++) {
                     var def = newInDefs[i];
-                    var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = def.Name, NickName = def.Name, Access = GH_ParamAccess.item, Optional = true };
-                    Params.RegisterInputParam(p);
+                    if (!currentInNow.Contains(def.Name)) {
+                        var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = def.Name, NickName = def.Name, Access = GH_ParamAccess.item, Optional = true };
+                        Params.RegisterInputParam(p);
+                    }
                 }
                 changed = true;
             }
@@ -826,28 +854,16 @@ try {
                 changed = true;
             }
 
-            // Check if any inputs need to be created
-            bool needsSliders = false;
-            for (int i = 0; i < newInDefs.Count; i++) {
-                if (newInDefs[i].Type != InputType.Generic) {
-                    int paramIdx = startIdx + i;
-                    if (paramIdx < Params.Input.Count && Params.Input[paramIdx].SourceCount == 0) {
-                        needsSliders = true;
-                    }
-                }
-            }
-
-            if (changed || needsSliders) {
+            if (changed) {
                 var doc = OnPingDocument();
                 if (doc != null) {
                     doc.ScheduleSolution(5, d => {
-                        CreateInputsForDefs(newInDefs);
                         this.ExpireSolution(false);
                     });
                 }
             }
 
-            return changed || needsSliders;
+            return changed;
         }
 
         public bool CanInsertParameter(GH_ParameterSide side, int index) => false;

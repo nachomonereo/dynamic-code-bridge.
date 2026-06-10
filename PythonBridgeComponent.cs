@@ -203,6 +203,7 @@ except Exception as e:
 #      - `Name[point]` or `Name[pt]` to create a point parameter.
 #      - `Name[plane]` or `Name[pl]` to create a plane parameter.
 #      - `Name[text]` or `Name[string]` to create a text/string parameter.
+#    - UI is generated manually by right-clicking the component and selecting 'Generate Missing Sliders'.
 # 3. COMPATIBILITY: Always start with 'Inputs = dict(Inputs)'.
 # 4. DATA ACCESS: Use 'val.Value if hasattr(val, ""Value"") else val' for numbers.
 # 5. LISTS: Always validate if an input is a list before iterating.
@@ -257,6 +258,25 @@ except Exception as e:
                         MessageBox.Show("Export failed: " + ex.Message);
                     }
                 }
+            });
+
+            Menu_AppendSeparator(menu);
+
+            Menu_AppendItem(menu, "Generate Missing Sliders/Inputs", (s, e) => {
+                if (string.IsNullOrEmpty(_lastCode)) return;
+                var lines = _lastCode.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                var newInDefs = new List<InputDef>();
+                foreach (var line in lines) {
+                    string t = line.Trim();
+                    if (t.StartsWith("// IN:") || t.StartsWith("# IN:")) {
+                        var parts = t.Split(':')[1].Split(',').Select(part => part.Trim()).Where(part => !string.IsNullOrEmpty(part));
+                        foreach (var part in parts) {
+                            newInDefs.Add(ParseInputToken(part));
+                        }
+                    }
+                }
+                CreateInputsForDefs(newInDefs);
+                this.ExpireSolution(true);
             });
         }
 
@@ -744,11 +764,18 @@ except Exception as e:
             // 1. Check Inputs
             var currentIn = Params.Input.Skip(startIdx).Select(p => p.Name).ToList();
             if (!newInNames.SequenceEqual(currentIn)) {
-                for (int i = Params.Input.Count - 1; i >= startIdx; i--) Params.UnregisterInputParameter(Params.Input[i]);
+                for (int i = Params.Input.Count - 1; i >= startIdx; i--) {
+                    if (!newInNames.Contains(Params.Input[i].Name)) {
+                        Params.UnregisterInputParameter(Params.Input[i]);
+                    }
+                }
+                var currentInNow = Params.Input.Skip(startIdx).Select(p => p.Name).ToList();
                 for (int i = 0; i < newInDefs.Count; i++) {
                     var def = newInDefs[i];
-                    var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = def.Name, NickName = def.Name, Access = GH_ParamAccess.item, Optional = true };
-                    Params.RegisterInputParam(p);
+                    if (!currentInNow.Contains(def.Name)) {
+                        var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = def.Name, NickName = def.Name, Access = GH_ParamAccess.item, Optional = true };
+                        Params.RegisterInputParam(p);
+                    }
                 }
                 changed = true;
             }
@@ -788,28 +815,16 @@ except Exception as e:
                 changed = true;
             }
 
-            // Check if any inputs need to be created
-            bool needsSliders = false;
-            for (int i = 0; i < newInDefs.Count; i++) {
-                if (newInDefs[i].Type != InputType.Generic) {
-                    int paramIdx = startIdx + i;
-                    if (paramIdx < Params.Input.Count && Params.Input[paramIdx].SourceCount == 0) {
-                        needsSliders = true;
-                    }
-                }
-            }
-
-            if (changed || needsSliders) {
+            if (changed) {
                 var doc = OnPingDocument();
                 if (doc != null) {
                     doc.ScheduleSolution(5, d => {
-                        CreateInputsForDefs(newInDefs);
                         this.ExpireSolution(false);
                     });
                 }
             }
 
-            return changed || needsSliders;
+            return changed;
         }
 
         public bool CanInsertParameter(GH_ParameterSide side, int index) => false;
