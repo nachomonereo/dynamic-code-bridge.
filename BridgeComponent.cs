@@ -43,7 +43,7 @@ namespace DynamicCodeBridge
               "Maths", "Script")
         {
             _lastCode = @"/* 
-   🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.4.0
+   🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.7.2
    ===========================================================================
    Developed by Nacho Monereo | IAAC
    ===========================================================================
@@ -176,7 +176,7 @@ try {
                     try {
                         string codeToExport = _lastCode;
                         string header = @"/* 
-   🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.5.1
+   🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.7.2
    ===========================================================================
    Bridge Component ID: {shortId}
    ===========================================================================

@@ -10,8 +10,8 @@
   </PropertyGroup>
   
   <PropertyGroup>
-    <Version>1.7.2</Version>
-    <AssemblyVersion>1.7.2</AssemblyVersion>
+    <Version>1.7.3</Version>
+    <AssemblyVersion>1.7.3</AssemblyVersion>
     <Authors>Nacho Monereo; MRAC-IAAC; Robots Lab IAAC</Authors>
     <Company>MRAC-IAAC - Robots Lab</Company>
     <Description>Dynamic Code Bridge for Rhino 8 with Diagnostic Telemetry. Developed at IAAC Robots Lab.</Description>

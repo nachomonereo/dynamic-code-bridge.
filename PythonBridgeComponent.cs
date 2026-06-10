@@ -38,7 +38,7 @@ namespace DynamicCodeBridge
             _lastCode = @"# r: numpy
 # !python3
 # ===========================================================================
-# 🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.4.0
+# 🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.7.2
 # Developed by Nacho Monereo | IAAC
 # ===========================================================================
 #
@@ -58,7 +58,7 @@ namespace DynamicCodeBridge
 # MANDATORY RULES FOR GENERATING CODE:
 # 1. HEADERS: Use '# r: library' on Line 1 for dependencies.
 # 2. TAGS: Use '# IN: Name1, Name2' and '# OUT: Name1, Name2' to sync pins.
-# 3. COMPATIBILITY: Always start with 'Inputs = dict(Inputs)'.
+# 3. COMPATIBILITY: Use 'Inputs.ContainsKey(""Name"")' and 'Inputs[""Name""]' to access data safely.
 # 4. DATA ACCESS: Use 'val.Value if hasattr(val, ""Value"") else val' for numbers.
 # 5. LISTS: Always validate if an input is a list before iterating.
 # 6. OUTPUTS: Assign results to variables matching your # OUT tags.""
@@ -70,11 +70,9 @@ namespace DynamicCodeBridge
 import Rhino.Geometry as rg
 
 # 1. COMPATIBILITY LAYER
-# We convert the .NET dictionary to a native Python dict.
-Inputs = dict(Inputs)
-
 def get_num(key, default):
-    val = Inputs.get(key)
+    if not Inputs.ContainsKey(key): return default
+    val = Inputs[key]
     if val is None: return default
     # Extract the .Value from Grasshopper types (GH_Number, GH_Integer)
     return val.Value if hasattr(val, 'Value') else val
@@ -172,7 +170,7 @@ except Exception as e:
                         string codeToExport = _lastCode;
                         string header = @"# !python3
 # ===========================================================================
-# 🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.5.1
+# 🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.7.2
 # Bridge Component ID: {shortId}
 # ===========================================================================
 #
@@ -204,7 +202,7 @@ except Exception as e:
 #      - `Name[plane]` or `Name[pl]` to create a plane parameter.
 #      - `Name[text]` or `Name[string]` to create a text/string parameter.
 #    - UI is generated manually by right-clicking the component and selecting 'Generate Missing Sliders'.
-# 3. COMPATIBILITY: Always start with 'Inputs = dict(Inputs)'.
+# 3. COMPATIBILITY: Use 'Inputs.ContainsKey(""Name"")' and 'Inputs[""Name""]' to access data safely.
 # 4. DATA ACCESS: Use 'val.Value if hasattr(val, ""Value"") else val' for numbers.
 # 5. LISTS: Always validate if an input is a list before iterating.
 # 6. OUTPUTS: Assign results to variables matching your # OUT tags.""
@@ -216,10 +214,9 @@ except Exception as e:
 import Rhino.Geometry as rg
 
 # 1. COMPATIBILITY LAYER
-Inputs = dict(Inputs)
-
 def get_num(key, default):
-    val = Inputs.get(key)
+    if not Inputs.ContainsKey(key): return default
+    val = Inputs[key]
     if val is None: return default
     return val.Value if hasattr(val, 'Value') else val
 
