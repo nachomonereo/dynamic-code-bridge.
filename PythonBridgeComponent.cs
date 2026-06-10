@@ -58,7 +58,7 @@ namespace DynamicCodeBridge
 # MANDATORY RULES FOR GENERATING CODE:
 # 1. HEADERS: Use '# r: library' on Line 1 for dependencies.
 # 2. TAGS: Use '# IN: Name1, Name2' and '# OUT: Name1, Name2' to sync pins.
-# 3. COMPATIBILITY: Rhino 8 CPython auto-marshals 'Inputs' to a native Python 'dict'. Use 'Inputs.get(""Name"")'. DO NOT use 'dict(Inputs)'.
+# 3. COMPATIBILITY: Rhino 8 CPython auto-marshals 'Inputs' differently. Always use 'if ""Name"" in Inputs:' or 'Inputs[""Name""]'. DO NOT use 'dict(Inputs)'.
 # 4. DATA ACCESS: Grasshopper types (like GH_Number) have a '.Value' property. Use 'val.Value if hasattr(val, ""Value"") else val' to safely extract data.
 # 5. LISTS: Always validate if an input is a list before iterating.
 # 6. OUTPUTS: Assign results to variables matching your # OUT tags.""
@@ -199,7 +199,7 @@ except Exception as e:
 #      - `Name[plane]` or `Name[pl]` to create a plane parameter.
 #      - `Name[text]` or `Name[string]` to create a text/string parameter.
 #    - UI is generated manually by right-clicking the component and selecting 'Generate Missing Sliders'.
-# 3. COMPATIBILITY: Rhino 8 CPython auto-marshals 'Inputs' to a native Python 'dict'. Use 'Inputs.get(""Name"")'. DO NOT use 'dict(Inputs)'.
+# 3. COMPATIBILITY: Rhino 8 CPython auto-marshals 'Inputs' differently. Always use 'if ""Name"" in Inputs:' or 'Inputs[""Name""]'. DO NOT use 'dict(Inputs)'.
 # 4. DATA ACCESS: Grasshopper types (like GH_Number) have a '.Value' property. Use 'val.Value if hasattr(val, ""Value"") else val' to safely extract data.
 # 5. LISTS: Always validate if an input is a list before iterating.
 # 6. OUTPUTS: Assign results to variables matching your # OUT tags.""
@@ -212,9 +212,11 @@ import Rhino.Geometry as rg
 
 # 1. COMPATIBILITY LAYER
 def get_num(key, default):
-    val = Inputs.get(key)
-    if val is None: return default
-    return val.Value if hasattr(val, 'Value') else val
+    if key in Inputs:
+        val = Inputs[key]
+        if val is not None:
+            return val.Value if hasattr(val, 'Value') else val
+    return default
 
 # 2. LIVE EXECUTION AREA
 ResultGeometry = None

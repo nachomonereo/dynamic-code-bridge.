@@ -264,14 +264,23 @@ object ResultColor = null;
 object StatusMessage = null;
 
 try {
-    double r = (Inputs.ContainsKey(""Radius"") && Inputs[""Radius""] != null) 
-        ? Convert.ToDouble(Inputs[""Radius""].ToString()) : 5.0;
+    double r = 5.0;
+    if (Inputs.ContainsKey(""Radius"") && Inputs[""Radius""] != null) {
+        if (Inputs[""Radius""] is GH_Number ghNum) r = ghNum.Value;
+        else if (Inputs[""Radius""] is GH_Integer ghInt) r = ghInt.Value;
+        else r = Convert.ToDouble(Inputs[""Radius""].ToString());
+    }
         
-    bool active = (Inputs.ContainsKey(""Active"") && Inputs[""Active""] != null) 
-        ? Convert.ToBoolean(Inputs[""Active""].ToString()) : true;
+    bool active = true;
+    if (Inputs.ContainsKey(""Active"") && Inputs[""Active""] != null) {
+        if (Inputs[""Active""] is GH_Boolean ghBool) active = ghBool.Value;
+        else active = Convert.ToBoolean(Inputs[""Active""].ToString());
+    }
         
-    System.Drawing.Color color = (Inputs.ContainsKey(""Color"") && Inputs[""Color""] != null) 
-        ? (System.Drawing.Color)Inputs[""Color""] : System.Drawing.Color.DeepSkyBlue;
+    System.Drawing.Color color = System.Drawing.Color.DeepSkyBlue;
+    if (Inputs.ContainsKey(""Color"") && Inputs[""Color""] != null) {
+        if (Inputs[""Color""] is GH_Colour ghCol) color = ghCol.Value;
+    }
 
     if (active) {
         ResultGeometry = new Sphere(Point3d.Origin, Math.Max(0.1, r));
