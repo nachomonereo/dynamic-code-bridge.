@@ -1,28 +1,24 @@
-# 🌮 DynamicCodeBridge v1.6.2
+# DynamicCodeBridge v1.7.0
 ### Professional Live-Coding Bridge for Rhino 8 & Grasshopper
 **Developed by Nacho Monereo | IAAC Robots Lab**
-
-[![Rhino 8](https://img.shields.io/badge/Rhino-8-blue.svg)](https://www.rhino3d.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Yak-1.6.2-green.svg)](https://yak.rhino3d.com/packages/DynamicCodeBridge)
 
 DynamicCodeBridge is a high-performance, real-time sync system linking external code files (`.cs`, `.py`) directly to Grasshopper. It enables you to write script logic inside professional external IDEs and instantly run, visualize, and debug it on the Grasshopper canvas.
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
-* **⚡ Instant Live-Sync**: Edit your code in Visual Studio, VS Code, Cursor, or Rider. Saving the file (`Ctrl+S`) re-compiles and re-calculates the Grasshopper definition in milliseconds.
-* **💻 Professional IDE Workflows**: Use full IntelliSense, autocomplete, formatting (Black, Prettier, C# Formatters), packages, and Git version control on your Grasshopper scripts.
-* **📦 Script Internalization**: Embed external scripts directly inside the Grasshopper component with a single click to make definitions fully standalone and portable.
-* **🛠️ Automatic Rich Inputs**: Annotate your code parameters with tags to dynamically generate and wire Grasshopper controls (Sliders, Toggles, Swatches, Points, Planes, and Strings).
-* **🔬 Deep Diagnostics**: Instantly generates `bridge_status_[shortId].log` containing compilation error traces, execution status, input/output snapshots, and runtime telemetry.
-* **🆔 Export ID Binding**: Exported script files are named `bridge_logic_[shortId].cs` / `.py` using the unique 8-character component GUID to keep files cleanly separated.
-* **🤖 AI-Ready System Prompts**: Exported scripts contain custom AI system prompts in their headers. Copy-paste them directly to ChatGPT, Gemini, or Claude to get instantly aligned code generations.
+* **Instant Live-Sync**: Edit your code in Visual Studio, VS Code, Cursor, or Rider. Saving the file (`Ctrl+S`) re-compiles and re-calculates the Grasshopper definition in milliseconds.
+* **Professional IDE Workflows**: Use full IntelliSense, autocomplete, formatting (Black, Prettier, C# Formatters), packages, and Git version control on your Grasshopper scripts.
+* **Script Internalization**: Embed external scripts directly inside the Grasshopper component with a single click to make definitions fully standalone and portable.
+* **Automatic Rich Inputs**: Annotate your code parameters with tags to dynamically generate and wire Grasshopper controls (Sliders, Toggles, Swatches, Points, Planes, and Strings).
+* **Deep Diagnostics**: Instantly generates `bridge_status_[shortId].log` containing compilation error traces, execution status, input/output snapshots, and runtime telemetry.
+* **Export ID Binding**: Exported script files are named `bridge_logic_[shortId].cs` / `.py` using the unique 8-character component GUID to keep files cleanly separated.
+* **AI-Ready System Prompts**: Exported scripts contain custom AI system prompts in their headers. Copy-paste them directly to ChatGPT, Gemini, or Claude to get instantly aligned code generations.
 
 ---
 
-## 💻 Professional IDE Integration & Real-Time Sync
+## Professional IDE Integration & Real-Time Sync
 
 Traditionally, editing scripts inside Grasshopper is constrained by simple, built-in text boxes lacking advanced developer tools. DynamicCodeBridge frees you from this limitation:
 
@@ -43,7 +39,7 @@ When you modify code in your editor and save (`Ctrl+S`):
 
 ---
 
-## 📦 Script Internalization (Standalone Mode)
+## Script Internalization (Standalone Mode)
 
 When sharing a `.gh` definition with clients, colleagues, or students, requiring them to manage external `.cs` or `.py` files can be cumbersome. DynamicCodeBridge solves this with **Standalone Mode**:
 
@@ -64,7 +60,7 @@ Now, your Grasshopper file is **fully portable** and self-contained! Anyone with
 
 ---
 
-## 📖 How to Use
+## How to Use
 
 1. **Install**: Search for `DynamicCodeBridge` in the Rhino 8 Package Manager (`_PackageManager`) and click Install.
 2. **Setup**: Drag the C# or Python Bridge component onto the Grasshopper canvas.
@@ -74,7 +70,7 @@ Now, your Grasshopper file is **fully portable** and self-contained! Anyone with
 
 ---
 
-## 🤖 AI-Assisted Workflow
+## AI-Assisted Workflow
 
 1. **Copy the Prompt**: Copy the pre-configured system prompt at the top of your exported script.
 2. **Paste & Prompt**: Paste the prompt into ChatGPT, Claude, or Gemini, then describe the geometry or logic you want.
@@ -82,7 +78,7 @@ Now, your Grasshopper file is **fully portable** and self-contained! Anyone with
 
 ---
 
-## 🛠️ Rules for Developers
+## Rules for Developers
 
 ### Python (CPython)
 - Declare dependencies at the very top using `# r: library_name`.
@@ -95,7 +91,7 @@ Now, your Grasshopper file is **fully portable** and self-contained! Anyone with
 
 ---
 
-## 🎓 About IAAC Robots Lab
+## About IAAC Robots Lab
 The **Institute for Advanced Architecture of Catalonia (IAAC)** is a center for research, education, and development at the intersection of architecture, robotics, and digital fabrication.
 
 **Developer:** Nacho Monereo
