@@ -63,17 +63,29 @@ namespace DynamicCodeBridge
    Grasshopper component via meta-programming.
    
    MANDATORY RULES FOR GENERATING CODE:
-   1. TAGS: Start the file with '// IN: Name1, Name2' and '// OUT: Name1, Name2'.
-   2. DATA ACCESS: Use 'Convert.ToDouble(Inputs[""Name""].ToString())' for numbers.
-   3. TYPES: Use 'using Rhino.Geometry;' and 'using Grasshopper.Kernel.Types;'.
-   4. LISTS: Check if an input is 'IList' or 'IEnumerable' before iterating.
-   5. OUTPUTS: Assign results to variables matching your // OUT tags.
-   6. STABILITY: Wrap everything in a 'try-catch' block to feed the logger.""
+   1. TAGS: Start the file with '// IN: Name1[slider], Name2[boolean]' and '// OUT: Name1, Name2'.
+      - Supported Input formats:
+        - `Name[min..max=val]` (e.g. `Radius[0.0..10.0=5.0]`) to create a number slider.
+        - `Name[boolean]` or `Name[toggle]` to create a boolean toggle.
+        - `Name[color]` or `Name[swatch]` to create a color swatch.
+        - `Name[point]` or `Name[pt]` to create a point parameter.
+        - `Name[plane]` or `Name[pl]` to create a plane parameter.
+        - `Name[text]` or `Name[string]` to create a text/string parameter.
+        - UI is generated manually by right-clicking the component and selecting 'Generate Missing Sliders'.
+   2. LIBRARIES: You can auto-install NuGet packages by adding `# r: package_name` at the very top.
+   3. DATA ACCESS: Grasshopper passes data as 'GH_Goo' wrappers. Always use pattern matching to extract '.Value' safely:
+      'if (Inputs[""Radius""] is GH_Number ghNum) r = ghNum.Value;'
+      'if (Inputs[""Color""] is GH_Colour ghCol) color = ghCol.Value;'
+      DO NOT cast directly like '(System.Drawing.Color)Inputs[""Color""].'
+   4. TYPES: Use 'using Rhino.Geometry;' and 'using Grasshopper.Kernel.Types;'.
+   5. LISTS: Check if an input is 'IList' or 'IEnumerable' before iterating.
+   6. OUTPUTS: Assign results to variables matching your // OUT tags.
+   7. STABILITY: Wrap everything in a 'try-catch' block to feed the logger.""
    ---------------------------------------------------------------------------
 */
 
-// IN: Radius
-// OUT: MySphere
+// IN: Radius[0.0..10.0=5.0], Active[boolean], Color[color]
+// OUT: ResultGeometry, ResultColor, StatusMessage
 
 using System;
 using System.Collections.Generic;
@@ -82,22 +94,38 @@ using Grasshopper.Kernel.Types;
 
 // --- LIVE EXECUTION AREA ---
 
+object ResultGeometry = null;
+object ResultColor = null;
+object StatusMessage = null;
+
 try {
-    // 1. SAFE INPUT RECOVERY (Pattern v1.3)
-    // We convert the input to string before parsing to handle GH types.
-    double r = (Inputs.ContainsKey(""Radius"") && Inputs[""Radius""] != null) 
-        ? Convert.ToDouble(Inputs[""Radius""].ToString()) : 1.0;
+    double r = 1.0;
+    if (Inputs.ContainsKey(""Radius"") && Inputs[""Radius""] != null) {
+        if (Inputs[""Radius""] is GH_Number ghNum) r = ghNum.Value;
+        else if (Inputs[""Radius""] is GH_Integer ghInt) r = ghInt.Value;
+        else r = Convert.ToDouble(Inputs[""Radius""].ToString());
+    }
+        
+    bool active = true;
+    if (Inputs.ContainsKey(""Active"") && Inputs[""Active""] != null) {
+        if (Inputs[""Active""] is GH_Boolean ghBool) active = ghBool.Value;
+        else active = Convert.ToBoolean(Inputs[""Active""].ToString());
+    }
+        
+    System.Drawing.Color color = System.Drawing.Color.DeepSkyBlue;
+    if (Inputs.ContainsKey(""Color"") && Inputs[""Color""] != null) {
+        if (Inputs[""Color""] is GH_Colour ghCol) color = ghCol.Value;
+    }
 
-    // 2. GEOMETRY LOGIC
-    // Your parametric logic goes here.
-    var MySphere = new Sphere(Point3d.Origin, Math.Max(0.1, r));
-
-    // 3. EXECUTION STATUS
-    // The output will be shown in the 'OUT' report pin.
-    $""C# Bridge Ready | Sphere Radius: {r:F2}"";
+    if (active) {
+        ResultGeometry = new Sphere(Point3d.Origin, Math.Max(0.1, r));
+        ResultColor = color;
+        StatusMessage = $""C# Bridge Ready | Radius: {r:F2}"";
+    } else {
+        StatusMessage = ""C# Bridge Ready | Component Disabled"";
+    }
 
 } catch (Exception ex) {
-    // DO NOT REMOVE: This feeds the Deep Diagnostic Log system.
     throw new Exception(""Diagnostic Error: "" + ex.Message, ex);
 }
 ";
@@ -210,7 +238,10 @@ try {
         - `Name[text]` or `Name[string]` to create a text/string parameter.
         - UI is generated manually by right-clicking the component and selecting 'Generate Missing Sliders'.
    2. LIBRARIES: You can auto-install NuGet packages by adding `# r: package_name` at the very top.
-   3. DATA ACCESS: Use 'Convert.ToDouble(Inputs[""Name""].ToString())' for numbers.
+   3. DATA ACCESS: Grasshopper passes data as 'GH_Goo' wrappers. Always use pattern matching to extract '.Value' safely:
+      'if (Inputs[""Radius""] is GH_Number ghNum) r = ghNum.Value;'
+      'if (Inputs[""Color""] is GH_Colour ghCol) color = ghCol.Value;'
+      DO NOT cast directly like '(System.Drawing.Color)Inputs[""Color""].'
    4. TYPES: Use 'using Rhino.Geometry;' and 'using Grasshopper.Kernel.Types;'.
    5. LISTS: Check if an input is 'IList' or 'IEnumerable' before iterating.
    6. OUTPUTS: Assign results to variables matching your // OUT tags.
@@ -218,8 +249,8 @@ try {
    ---------------------------------------------------------------------------
 */
 
-// IN: Radius[0.0..10.0=5.0], Active[boolean], Color[color], Pt[point], Pl[plane], Msg[text]
-// OUT: MySphere, Status
+// IN: Radius[0.0..10.0=5.0], Active[boolean], Color[color]
+// OUT: ResultGeometry, ResultColor, StatusMessage
 
 using System;
 using System.Collections.Generic;
@@ -228,16 +259,27 @@ using Grasshopper.Kernel.Types;
 
 // --- LIVE EXECUTION AREA ---
 
-object MySphere = null;
-object Status = null;
+object ResultGeometry = null;
+object ResultColor = null;
+object StatusMessage = null;
 
 try {
     double r = (Inputs.ContainsKey(""Radius"") && Inputs[""Radius""] != null) 
         ? Convert.ToDouble(Inputs[""Radius""].ToString()) : 5.0;
+        
+    bool active = (Inputs.ContainsKey(""Active"") && Inputs[""Active""] != null) 
+        ? Convert.ToBoolean(Inputs[""Active""].ToString()) : true;
+        
+    System.Drawing.Color color = (Inputs.ContainsKey(""Color"") && Inputs[""Color""] != null) 
+        ? (System.Drawing.Color)Inputs[""Color""] : System.Drawing.Color.DeepSkyBlue;
 
-    MySphere = new Sphere(Point3d.Origin, Math.Max(0.1, r));
-
-    Status = $""C# Bridge Ready | Component ID: {shortId} | Radius: {r:F2}"";
+    if (active) {
+        ResultGeometry = new Sphere(Point3d.Origin, Math.Max(0.1, r));
+        ResultColor = color;
+        StatusMessage = $""C# Bridge Ready | Component ID: {shortId} | Radius: {r:F2}"";
+    } else {
+        StatusMessage = ""C# Bridge Ready | Component Disabled"";
+    }
 
 } catch (Exception ex) {
     throw new Exception(""Diagnostic Error: "" + ex.Message, ex);

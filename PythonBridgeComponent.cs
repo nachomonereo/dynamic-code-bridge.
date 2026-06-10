@@ -58,23 +58,21 @@ namespace DynamicCodeBridge
 # MANDATORY RULES FOR GENERATING CODE:
 # 1. HEADERS: Use '# r: library' on Line 1 for dependencies.
 # 2. TAGS: Use '# IN: Name1, Name2' and '# OUT: Name1, Name2' to sync pins.
-# 3. COMPATIBILITY: Use 'Inputs.ContainsKey(""Name"")' and 'Inputs[""Name""]' to access data safely.
-# 4. DATA ACCESS: Use 'val.Value if hasattr(val, ""Value"") else val' for numbers.
+# 3. COMPATIBILITY: Rhino 8 CPython auto-marshals 'Inputs' to a native Python 'dict'. Use 'Inputs.get(""Name"")'. DO NOT use 'dict(Inputs)'.
+# 4. DATA ACCESS: Grasshopper types (like GH_Number) have a '.Value' property. Use 'val.Value if hasattr(val, ""Value"") else val' to safely extract data.
 # 5. LISTS: Always validate if an input is a list before iterating.
 # 6. OUTPUTS: Assign results to variables matching your # OUT tags.""
 # ---------------------------------------------------------------------------
 
 # IN: Radius
-# OUT: MySphere
+# OUT: ResultGeometry
 
 import Rhino.Geometry as rg
 
 # 1. COMPATIBILITY LAYER
 def get_num(key, default):
-    if not Inputs.ContainsKey(key): return default
-    val = Inputs[key]
+    val = Inputs.get(key)
     if val is None: return default
-    # Extract the .Value from Grasshopper types (GH_Number, GH_Integer)
     return val.Value if hasattr(val, 'Value') else val
 
 try:
@@ -84,11 +82,10 @@ try:
 
     # 3. GEOMETRY LOGIC
     # Your parametric logic goes here.
-    MySphere = rg.Sphere(rg.Point3d.Origin, max(0.1, r))
+    ResultGeometry = rg.Sphere(rg.Point3d.Origin, max(0.1, r))
 
     # 4. STATUS REPORT
     print('Python Bridge Ready | Sphere Radius: {0:.2f}'.format(r))
-    'Status: OK'
 
 except Exception as e:
     # Diagnostic Log will capture the full StackTrace and Input Snapshot.
@@ -202,38 +199,43 @@ except Exception as e:
 #      - `Name[plane]` or `Name[pl]` to create a plane parameter.
 #      - `Name[text]` or `Name[string]` to create a text/string parameter.
 #    - UI is generated manually by right-clicking the component and selecting 'Generate Missing Sliders'.
-# 3. COMPATIBILITY: Use 'Inputs.ContainsKey(""Name"")' and 'Inputs[""Name""]' to access data safely.
-# 4. DATA ACCESS: Use 'val.Value if hasattr(val, ""Value"") else val' for numbers.
+# 3. COMPATIBILITY: Rhino 8 CPython auto-marshals 'Inputs' to a native Python 'dict'. Use 'Inputs.get(""Name"")'. DO NOT use 'dict(Inputs)'.
+# 4. DATA ACCESS: Grasshopper types (like GH_Number) have a '.Value' property. Use 'val.Value if hasattr(val, ""Value"") else val' to safely extract data.
 # 5. LISTS: Always validate if an input is a list before iterating.
 # 6. OUTPUTS: Assign results to variables matching your # OUT tags.""
 # ---------------------------------------------------------------------------
 
-# IN: Radius[0.0..10.0=5.0], Active[boolean], Color[color], Pt[point], Pl[plane], Msg[text]
-# OUT: MySphere, Status
+# IN: Radius[0.0..10.0=5.0], Active[boolean], Color[color]
+# OUT: ResultGeometry, ResultColor, StatusMessage
 
 import Rhino.Geometry as rg
 
 # 1. COMPATIBILITY LAYER
 def get_num(key, default):
-    if not Inputs.ContainsKey(key): return default
-    val = Inputs[key]
+    val = Inputs.get(key)
     if val is None: return default
     return val.Value if hasattr(val, 'Value') else val
 
 # 2. LIVE EXECUTION AREA
-MySphere = None
-Status = None
+ResultGeometry = None
+ResultColor = None
+StatusMessage = None
 
 try:
     # INPUT RECOVERY
     r = float(get_num('Radius', 5.0))
+    active = get_num('Active', True)
+    color = get_num('Color', None)
 
-    # GEOMETRY LOGIC
-    MySphere = rg.Sphere(rg.Point3d.Origin, max(0.1, r))
-
-    # STATUS REPORT
-    Status = 'Python Ready | Component ID: {0} | Radius: {1:.2f}'.format('{shortId}', r)
-    print(Status)
+    if active:
+        # GEOMETRY LOGIC
+        ResultGeometry = rg.Sphere(rg.Point3d.Origin, max(0.1, r))
+        ResultColor = color
+        StatusMessage = 'Python Ready | Component ID: {0} | Radius: {1:.2f}'.format('{shortId}', r)
+    else:
+        StatusMessage = 'Python Ready | Component Disabled'
+    
+    print(StatusMessage)
 
 except Exception as e:
     raise e
