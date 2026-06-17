@@ -19,6 +19,7 @@ using Rhino.Runtime.Code;
 using Rhino.Runtime.Code.Execution;
 using Rhino.Runtime.Code.Languages;
 using Grasshopper.Kernel.Special;
+using Grasshopper.Kernel.Types;
 
 namespace DynamicCodeBridge
 {
@@ -127,47 +128,13 @@ except Exception as e:
             return base.Read(reader);
         }
 
-        protected override void AppendAdditionalComponentMenuItems(ToolStripDropDown menu)
+        private string GetDefaultTemplate(string shortId)
         {
-            Menu_AppendItem(menu, "Internalize Code (Standalone)", (s, e) => {
-                _isInternalized = !_isInternalized;
-                var doc = OnPingDocument();
-                if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(false));
-            }, true, _isInternalized);
-
-            Menu_AppendItem(menu, "Link to File Path...", (s, e) => {
-                OpenFileDialog ofd = new OpenFileDialog { Filter = "Python Script|*.py", Title = "Link Bridge Code" };
-                if (ofd.ShowDialog() == DialogResult.OK) {
-                    _currentPath = ofd.FileName;
-                    _isInternalized = false;
-                    _lastCode = File.ReadAllText(_currentPath);
-                    SetupWatcher(_currentPath);
-                    
-                    if (SyncParameters(_lastCode)) {
-                        Params.OnParametersChanged();
-                    }
-                    this.OnAttributesChanged();
-
-                    var doc = OnPingDocument();
-                    if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
-                }
-            });
-
-            Menu_AppendSeparator(menu);
-
-            Menu_AppendItem(menu, "Export Code to File...", (s, e) => {
-                string shortId = this.InstanceGuid.ToString().Substring(0, 8);
-                SaveFileDialog sfd = new SaveFileDialog { 
-                    Filter = "Python Script|*.py", 
-                    Title = "Export & Link Master Template", 
-                    FileName = $"bridge_logic_{shortId}.py" 
-                };
-                if (sfd.ShowDialog() == DialogResult.OK) {
-                    try {
-                        string codeToExport = _lastCode;
-                        string header = @"# !python3
+            return @"# r: numpy
+# !python3
 # ===========================================================================
 # 🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.7.2
+# ===========================================================================
 # Bridge Component ID: {shortId}
 # ===========================================================================
 #
@@ -182,11 +149,7 @@ except Exception as e:
 # 🤖 [ AI SYSTEM PROMPT - COPY & PASTE TO CHATGPT/GEMINI ]
 # ---------------------------------------------------------------------------
 # ""You are an expert Rhino/Grasshopper Python Developer. I am using the 
-# 'Dynamic Code Bridge' for Rhino 8 (CPython).
-# 
-# CONTEXT FOR THIS FILE:
-# - This file is linked to the Grasshopper Component with ID: {shortId}
-# - The diagnostic log for this component is: bridge_status_{shortId}.log
+# 'Dynamic Code Bridge' for Rhino 8 (CPython). 
 # 
 # MANDATORY RULES FOR GENERATING CODE:
 # 1. HEADERS: Use '# r: library' on Line 1 for dependencies.
@@ -198,9 +161,11 @@ except Exception as e:
 #      - `Name[point]` or `Name[pt]` to create a point parameter.
 #      - `Name[plane]` or `Name[pl]` to create a plane parameter.
 #      - `Name[text]` or `Name[string]` to create a text/string parameter.
+#      - `Name[list]` to set List Access (receives `List<IGH_Goo>`).
+#      - `Name[tree]` to set Tree Access (receives `GH_Structure<IGH_Goo>`).
 #    - UI is generated manually by right-clicking the component and selecting 'Generate Missing Sliders'.
-# 3. COMPATIBILITY: Rhino 8 CPython auto-marshals 'Inputs' differently. Always use 'if ""Name"" in Inputs:' or 'Inputs[""Name""]'. DO NOT use 'dict(Inputs)'.
-# 4. DATA ACCESS: Grasshopper types (like GH_Number) have a '.Value' property. Use 'val.Value if hasattr(val, ""Value"") else val' to safely extract data.
+# 3. COMPATIBILITY: Rhino 8 CPython auto-marshals 'Inputs' differently. Always use 'if """"Name"""" in Inputs:' or 'Inputs[""""Name""""]'. DO NOT use 'dict(Inputs)'.
+# 4. DATA ACCESS: Grasshopper types (like GH_Number) have a '.Value' property. Use 'val.Value if hasattr(val, """"Value"""") else val' to safely extract data.
 # 5. LISTS: Always validate if an input is a list before iterating.
 # 6. OUTPUTS: Assign results to variables matching your # OUT tags.""
 # ---------------------------------------------------------------------------
@@ -233,7 +198,7 @@ try:
         # GEOMETRY LOGIC
         ResultGeometry = rg.Sphere(rg.Point3d.Origin, max(0.1, r))
         ResultColor = color
-        StatusMessage = 'Python Ready | Component ID: {0} | Radius: {1:.2f}'.format('{shortId}', r)
+        StatusMessage = 'Python Ready | Component ID: {{shortId}} | Radius: {0:.2f}'.format(r)
     else:
         StatusMessage = 'Python Ready | Component Disabled'
     
@@ -242,6 +207,53 @@ try:
 except Exception as e:
     raise e
 ".Replace("{shortId}", shortId);
+        }
+
+        protected override void AppendAdditionalComponentMenuItems(ToolStripDropDown menu)
+        {
+            Menu_AppendItem(menu, "Internalize Code (Standalone)", (s, e) => {
+                _isInternalized = !_isInternalized;
+                var doc = OnPingDocument();
+                if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(false));
+            }, true, _isInternalized);
+
+            Menu_AppendItem(menu, "Link to File Path...", (s, e) => {
+                OpenFileDialog ofd = new OpenFileDialog { Filter = "Python Script|*.py", Title = "Link Python Bridge Code" };
+                if (ofd.ShowDialog() == DialogResult.OK) {
+                    _currentPath = ofd.FileName;
+                    _isInternalized = false;
+                    string fileContent = File.ReadAllText(_currentPath);
+                    if (string.IsNullOrWhiteSpace(fileContent)) {
+                        string shortId = this.InstanceGuid.ToString().Substring(0, 8);
+                        fileContent = GetDefaultTemplate(shortId);
+                        File.WriteAllText(_currentPath, fileContent);
+                    }
+                    _lastCode = fileContent;
+                    SetupWatcher(_currentPath);
+                    
+                    if (SyncParameters(_lastCode)) {
+                        Params.OnParametersChanged();
+                    }
+                    this.OnAttributesChanged();
+                    
+                    var doc = OnPingDocument();
+                    if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
+                }
+            });
+
+            Menu_AppendSeparator(menu);
+
+            Menu_AppendItem(menu, "Export Code to File...", (s, e) => {
+                string shortId = this.InstanceGuid.ToString().Substring(0, 8);
+                SaveFileDialog sfd = new SaveFileDialog { 
+                    Filter = "Python Script|*.py", 
+                    Title = "Export & Link Master Template", 
+                    FileName = $"bridge_logic_{shortId}.py" 
+                };
+                if (sfd.ShowDialog() == DialogResult.OK) {
+                    try {
+                        string codeToExport = _lastCode;
+                        string header = GetDefaultTemplate(shortId);
                         if (string.IsNullOrEmpty(_lastCode) || _lastCode.Contains("MASTER MANUAL")) {
                             codeToExport = header;
                         }
@@ -314,17 +326,22 @@ except Exception as e:
                     if (_currentPath != activePath) {
                         if (!string.IsNullOrEmpty(activePath) && File.Exists(activePath)) {
                             _currentPath = activePath;
-                            _lastCode = File.ReadAllText(_currentPath);
+                            string fileContent = File.ReadAllText(_currentPath);
+                            if (string.IsNullOrWhiteSpace(fileContent)) {
+                                string sId = this.InstanceGuid.ToString().Substring(0, 8);
+                                fileContent = GetDefaultTemplate(sId);
+                                File.WriteAllText(_currentPath, fileContent);
+                            }
+                            _lastCode = fileContent;
                             SetupWatcher(_currentPath);
                             _statusText = "LINKED: " + Path.GetFileName(_currentPath);
                             
                             if (SyncParameters(_lastCode)) {
                                 Params.OnParametersChanged();
                                 this.OnAttributesChanged();
-                            } else {
-                                var doc = OnPingDocument();
-                                if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
                             }
+                            var doc = OnPingDocument();
+                            if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
                             return;
                         } else {
                             _statusText = "FILE MISSING";
@@ -347,14 +364,27 @@ except Exception as e:
                 }
 
                 if (SyncParameters(_lastCode)) {
+                    Params.OnParametersChanged();
                     this.OnAttributesChanged();
+                    var doc = OnPingDocument();
+                    if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
                     return;
                 }
 
                 var inputs = new Dictionary<string, object>();
                 int start = (_isInternalized || Params.Input.Count == 0 || Params.Input[0].Name != "File Path") ? 0 : 1;
                 for (int i = start; i < Params.Input.Count; i++) {
-                    object val = null; DA.GetData(i, ref val);
+                    object val = null;
+                    if (Params.Input[i].Access == GH_ParamAccess.tree) {
+                        DA.GetDataTree(i, out Grasshopper.Kernel.Data.GH_Structure<IGH_Goo> tree);
+                        val = tree;
+                    } else if (Params.Input[i].Access == GH_ParamAccess.list) {
+                        var list = new List<IGH_Goo>();
+                        DA.GetDataList(i, list);
+                        val = list;
+                    } else {
+                        DA.GetData(i, ref val);
+                    }
                     inputs[Params.Input[i].Name] = val;
                 }
 
@@ -522,6 +552,7 @@ except Exception as e:
         {
             public string Name;
             public InputType Type;
+            public GH_ParamAccess Access;
             public double Min;
             public double Max;
             public double Val;
@@ -531,7 +562,7 @@ except Exception as e:
 
         private InputDef ParseInputToken(string token)
         {
-            var def = new InputDef { Name = token, Type = InputType.Generic };
+            var def = new InputDef { Name = token, Type = InputType.Generic, Access = GH_ParamAccess.item };
             int bracketStart = token.IndexOf('[');
             int bracketEnd = token.IndexOf(']');
             if (bracketStart > 0 && bracketEnd > bracketStart)
@@ -568,6 +599,14 @@ except Exception as e:
                 else if (specLower == "text" || specLower == "txt" || specLower == "string")
                 {
                     def.Type = InputType.Text;
+                }
+                else if (specLower == "tree")
+                {
+                    def.Access = GH_ParamAccess.tree;
+                }
+                else if (specLower == "list")
+                {
+                    def.Access = GH_ParamAccess.list;
                 }
                 else
                 {
@@ -774,7 +813,7 @@ except Exception as e:
                 for (int i = 0; i < newInDefs.Count; i++) {
                     var def = newInDefs[i];
                     if (!currentInNow.Contains(def.Name)) {
-                        var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = def.Name, NickName = def.Name, Access = GH_ParamAccess.item, Optional = true };
+                        var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = def.Name, NickName = def.Name, Access = def.Access, Optional = true };
                         Params.RegisterInputParam(p);
                     }
                 }
@@ -787,6 +826,8 @@ except Exception as e:
                 if (paramIdx < Params.Input.Count) {
                     var def = newInDefs[i];
                     var param = Params.Input[paramIdx];
+                    if (param.Access != def.Access) param.Access = def.Access;
+                    
                     if (def.Type == InputType.Slider) {
                         param.Description = $"Numeric Range: {def.Min}..{def.Max} (Default: {def.Val}, Type: Double/Int)";
                     } else if (def.Type == InputType.Boolean) {

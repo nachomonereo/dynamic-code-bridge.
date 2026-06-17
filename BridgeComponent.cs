@@ -17,6 +17,7 @@ using Rhino.Geometry;
 using Microsoft.CodeAnalysis.Scripting;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Grasshopper.Kernel.Special;
+using Grasshopper.Kernel.Types;
 
 namespace DynamicCodeBridge
 {
@@ -160,50 +161,13 @@ try {
             if (reader.ItemExists("LastCode")) _lastCode = reader.GetString("LastCode");
             if (reader.ItemExists("IsInternalized")) _isInternalized = reader.GetBoolean("IsInternalized");
             if (reader.ItemExists("CurrentPath")) _currentPath = reader.GetString("CurrentPath");
-            
             if (!_isInternalized && !string.IsNullOrEmpty(_currentPath)) SetupWatcher(_currentPath);
             return base.Read(reader);
         }
 
-        protected override void AppendAdditionalComponentMenuItems(ToolStripDropDown menu)
+        private string GetDefaultTemplate(string shortId)
         {
-            Menu_AppendItem(menu, "Internalize Code (Standalone)", (s, e) => {
-                _isInternalized = !_isInternalized;
-                var doc = OnPingDocument();
-                if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(false));
-            }, true, _isInternalized);
-
-            Menu_AppendItem(menu, "Link to File Path...", (s, e) => {
-                OpenFileDialog ofd = new OpenFileDialog { Filter = "C# Script|*.cs", Title = "Link Bridge Code" };
-                if (ofd.ShowDialog() == DialogResult.OK) {
-                    _currentPath = ofd.FileName;
-                    _isInternalized = false;
-                    _lastCode = File.ReadAllText(_currentPath);
-                    SetupWatcher(_currentPath);
-                    
-                    if (SyncParameters(_lastCode)) {
-                        Params.OnParametersChanged();
-                    }
-                    this.OnAttributesChanged();
-                    
-                    var doc = OnPingDocument();
-                    if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
-                }
-            });
-
-            Menu_AppendSeparator(menu);
-
-            Menu_AppendItem(menu, "Export Code to File...", (s, e) => {
-                string shortId = this.InstanceGuid.ToString().Substring(0, 8);
-                SaveFileDialog sfd = new SaveFileDialog { 
-                    Filter = "C# Script|*.cs", 
-                    Title = "Export & Link Master Template", 
-                    FileName = $"bridge_logic_{shortId}.cs" 
-                };
-                if (sfd.ShowDialog() == DialogResult.OK) {
-                    try {
-                        string codeToExport = _lastCode;
-                        string header = @"/* 
+            return @"/* 
    🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.7.2
    ===========================================================================
    Bridge Component ID: {shortId}
@@ -236,13 +200,15 @@ try {
         - `Name[point]` or `Name[pt]` to create a point parameter.
         - `Name[plane]` or `Name[pl]` to create a plane parameter.
         - `Name[text]` or `Name[string]` to create a text/string parameter.
+        - `Name[list]` to set List Access (receives `List<IGH_Goo>`).
+        - `Name[tree]` to set Tree Access (receives `GH_Structure<IGH_Goo>`).
         - UI is generated manually by right-clicking the component and selecting 'Generate Missing Sliders'.
    2. LIBRARIES: You can auto-install NuGet packages by adding `# r: package_name` at the very top.
    3. DATA ACCESS: Grasshopper passes data as 'GH_Goo' wrappers. Always use pattern matching to extract '.Value' safely:
       'if (Inputs[""Radius""] is GH_Number ghNum) r = ghNum.Value;'
       'if (Inputs[""Color""] is GH_Colour ghCol) color = ghCol.Value;'
       DO NOT cast directly like '(System.Drawing.Color)Inputs[""Color""].'
-   4. TYPES: Use 'using Rhino.Geometry;' and 'using Grasshopper.Kernel.Types;'.
+   4. TYPES: Use 'using Rhino.Geometry;', 'using Grasshopper.Kernel.Types;', and 'using Grasshopper.Kernel.Data;'.
    5. LISTS: Check if an input is 'IList' or 'IEnumerable' before iterating.
    6. OUTPUTS: Assign results to variables matching your // OUT tags.
    7. STABILITY: Wrap everything in a 'try-catch' block to feed the logger.""
@@ -285,7 +251,7 @@ try {
     if (active) {
         ResultGeometry = new Sphere(Point3d.Origin, Math.Max(0.1, r));
         ResultColor = color;
-        StatusMessage = $""C# Bridge Ready | Component ID: {shortId} | Radius: {r:F2}"";
+        StatusMessage = $""C# Bridge Ready | Component ID: {{shortId}} | Radius: {r:F2}"";
     } else {
         StatusMessage = ""C# Bridge Ready | Component Disabled"";
     }
@@ -294,6 +260,53 @@ try {
     throw new Exception(""Diagnostic Error: "" + ex.Message, ex);
 }
 ".Replace("{shortId}", shortId);
+        }
+
+        protected override void AppendAdditionalComponentMenuItems(ToolStripDropDown menu)
+        {
+            Menu_AppendItem(menu, "Internalize Code (Standalone)", (s, e) => {
+                _isInternalized = !_isInternalized;
+                var doc = OnPingDocument();
+                if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(false));
+            }, true, _isInternalized);
+
+            Menu_AppendItem(menu, "Link to File Path...", (s, e) => {
+                OpenFileDialog ofd = new OpenFileDialog { Filter = "C# Script|*.cs", Title = "Link Bridge Code" };
+                if (ofd.ShowDialog() == DialogResult.OK) {
+                    _currentPath = ofd.FileName;
+                    _isInternalized = false;
+                    string fileContent = File.ReadAllText(_currentPath);
+                    if (string.IsNullOrWhiteSpace(fileContent)) {
+                        string shortId = this.InstanceGuid.ToString().Substring(0, 8);
+                        fileContent = GetDefaultTemplate(shortId);
+                        File.WriteAllText(_currentPath, fileContent);
+                    }
+                    _lastCode = fileContent;
+                    SetupWatcher(_currentPath);
+                    
+                    if (SyncParameters(_lastCode)) {
+                        Params.OnParametersChanged();
+                    }
+                    this.OnAttributesChanged();
+                    
+                    var doc = OnPingDocument();
+                    if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
+                }
+            });
+
+            Menu_AppendSeparator(menu);
+
+            Menu_AppendItem(menu, "Export Code to File...", (s, e) => {
+                string shortId = this.InstanceGuid.ToString().Substring(0, 8);
+                SaveFileDialog sfd = new SaveFileDialog { 
+                    Filter = "C# Script|*.cs", 
+                    Title = "Export & Link Master Template", 
+                    FileName = $"bridge_logic_{shortId}.cs" 
+                };
+                if (sfd.ShowDialog() == DialogResult.OK) {
+                    try {
+                        string codeToExport = _lastCode;
+                        string header = GetDefaultTemplate(shortId);
                         if (string.IsNullOrEmpty(_lastCode) || _lastCode.Contains("MASTER MANUAL")) {
                             codeToExport = header;
                         }
@@ -381,7 +394,13 @@ try {
                     if (_currentPath != activePath) {
                         if (!string.IsNullOrEmpty(activePath) && File.Exists(activePath)) {
                             _currentPath = activePath;
-                            _lastCode = File.ReadAllText(_currentPath);
+                            string fileContent = File.ReadAllText(_currentPath);
+                            if (string.IsNullOrWhiteSpace(fileContent)) {
+                                string sId = this.InstanceGuid.ToString().Substring(0, 8);
+                                fileContent = GetDefaultTemplate(sId);
+                                File.WriteAllText(_currentPath, fileContent);
+                            }
+                            _lastCode = fileContent;
                             SetupWatcher(_currentPath);
                             _statusText = "LINKED: " + Path.GetFileName(_currentPath);
                             
@@ -389,10 +408,9 @@ try {
                             if (SyncParameters(_lastCode)) {
                                 Params.OnParametersChanged();
                                 this.OnAttributesChanged();
-                            } else {
-                                var doc = OnPingDocument();
-                                if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
                             }
+                            var doc = OnPingDocument();
+                            if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
                             return;
                         } else {
                             _statusText = "FILE MISSING";
@@ -415,7 +433,10 @@ try {
                 }
 
                 if (SyncParameters(_lastCode)) {
+                    Params.OnParametersChanged();
                     this.OnAttributesChanged();
+                    var doc = OnPingDocument();
+                    if (doc != null) doc.ScheduleSolution(5, d => this.ExpireSolution(true));
                     return;
                 }
 
@@ -428,7 +449,16 @@ try {
                         string name = Params.Input[i].Name;
                         object val = null;
                         try {
-                            DA.GetData(i, ref val);
+                            if (Params.Input[i].Access == GH_ParamAccess.tree) {
+                                DA.GetDataTree(i, out Grasshopper.Kernel.Data.GH_Structure<IGH_Goo> tree);
+                                val = tree;
+                            } else if (Params.Input[i].Access == GH_ParamAccess.list) {
+                                var list = new List<IGH_Goo>();
+                                DA.GetDataList(i, list);
+                                val = list;
+                            } else {
+                                DA.GetData(i, ref val);
+                            }
                         } catch { }
                         globals.Inputs[name] = val;
                     }
@@ -611,6 +641,7 @@ try {
         {
             public string Name;
             public InputType Type;
+            public GH_ParamAccess Access;
             public double Min;
             public double Max;
             public double Val;
@@ -620,7 +651,7 @@ try {
 
         private InputDef ParseInputToken(string token)
         {
-            var def = new InputDef { Name = token, Type = InputType.Generic };
+            var def = new InputDef { Name = token, Type = InputType.Generic, Access = GH_ParamAccess.item };
             int bracketStart = token.IndexOf('[');
             int bracketEnd = token.IndexOf(']');
             if (bracketStart > 0 && bracketEnd > bracketStart)
@@ -657,6 +688,14 @@ try {
                 else if (specLower == "text" || specLower == "txt" || specLower == "string")
                 {
                     def.Type = InputType.Text;
+                }
+                else if (specLower == "tree")
+                {
+                    def.Access = GH_ParamAccess.tree;
+                }
+                else if (specLower == "list")
+                {
+                    def.Access = GH_ParamAccess.list;
                 }
                 else
                 {
@@ -863,7 +902,7 @@ try {
                 for (int i = 0; i < newInDefs.Count; i++) {
                     var def = newInDefs[i];
                     if (!currentInNow.Contains(def.Name)) {
-                        var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = def.Name, NickName = def.Name, Access = GH_ParamAccess.item, Optional = true };
+                        var p = new Grasshopper.Kernel.Parameters.Param_GenericObject { Name = def.Name, NickName = def.Name, Access = def.Access, Optional = true };
                         Params.RegisterInputParam(p);
                     }
                 }
@@ -876,6 +915,8 @@ try {
                 if (paramIdx < Params.Input.Count) {
                     var def = newInDefs[i];
                     var param = Params.Input[paramIdx];
+                    if (param.Access != def.Access) param.Access = def.Access;
+                    
                     if (def.Type == InputType.Slider) {
                         param.Description = $"Numeric Range: {def.Min}..{def.Max} (Default: {def.Val}, Type: Double/Int)";
                     } else if (def.Type == InputType.Boolean) {
