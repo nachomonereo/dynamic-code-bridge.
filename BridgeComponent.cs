@@ -41,7 +41,7 @@ namespace DynamicCodeBridge
         public DynamicBridgeComponent()
           : base("Dynamic C# Bridge", "CsBridge",
               "A real-time C# link for Rhino 8 with Atomic Sync & Diagnostic Logs.",
-              "Maths", "Script")
+              "IAAC", "Dynamic Bridge")
         {
             _lastCode = @"/* 
    🌮 DYNAMIC CODE BRIDGE - MASTER MANUAL v1.7.2

@@ -10,8 +10,8 @@
   </PropertyGroup>
   
   <PropertyGroup>
-    <Version>0.1.1</Version>
-    <AssemblyVersion>0.1.1</AssemblyVersion>
+    <Version>0.1.2</Version>
+    <AssemblyVersion>0.1.2</AssemblyVersion>
     <Authors>Nacho Monereo; MRAC-IAAC; Robots Lab IAAC</Authors>
     <Company>MRAC-IAAC - Robots Lab</Company>
     <Description>Dynamic Code Bridge for Rhino 8 with Diagnostic Telemetry. Developed at IAAC Robots Lab.</Description>
@@ -66,5 +66,8 @@
     <Copy SourceFiles="$(MSBuildProjectDirectory)\manifest.yml" DestinationFolder="$(OutputPath)" Condition="$(BuildYakPackage) == 'True'" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)\LOGO.png" DestinationFiles="$(OutputPath)\logo.png" Condition="$(BuildYakPackage) == 'True' and Exists('$(MSBuildProjectDirectory)\LOGO.png')" />
     <Exec Command="&quot;$(YakExecutable)&quot; build" WorkingDirectory="$(OutputPath)" Condition="$(BuildYakPackage) == 'True'" />
+  </Target>
+  <Target Name="CopyGHAToLibraries" AfterTargets="Build" Condition="'$(OS)' == 'Windows_NT'">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(APPDATA)\Grasshopper\Libraries" />
   </Target>
 </Project>

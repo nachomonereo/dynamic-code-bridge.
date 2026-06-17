@@ -34,7 +34,7 @@ namespace DynamicCodeBridge
         public DynamicPythonBridgeComponent()
           : base("Dynamic Python Bridge", "PyBridge",
               "A real-time Python link for Rhino 8 CPython with Diagnostic Logs.",
-              "Maths", "Script")
+              "IAAC", "Dynamic Bridge")
         {
             _lastCode = @"# r: numpy
 # !python3
