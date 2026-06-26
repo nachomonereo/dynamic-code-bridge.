@@ -1029,18 +1029,30 @@ try {
         {
             try
             {
+                string code = _lastCode;
+                
+                // Comment out output variable declarations to avoid conflict with RunScript ref parameters
+                foreach (var p in this.Params.Output) {
+                    if (p.Name == "Diagnostics") continue;
+                    code = System.Text.RegularExpressions.Regex.Replace(code, @"object\s+" + p.Name + @"\s*=", "// object " + p.Name + " =");
+                }
+
+                // Replace Inputs["Name"] with Name to match RunScript arguments
+                foreach (var p in this.Params.Input) {
+                    code = code.Replace("Inputs[\"" + p.Name + "\"]", p.Name);
+                }
+
                 string header = "/*\n" +
                                 "   --- DYNAMIC CODE BRIDGE EXPORT ---\n" +
                                 "   To use this code in a native Grasshopper C# component:\n" +
                                 "   1. Create the matching Inputs on the native component.\n" +
-                                "   2. The Code Bridge uses an 'Inputs[\"Name\"]' dictionary.\n" +
-                                "      You may need to manually replace 'Inputs[\"Name\"]' with 'Name' \n" +
-                                "      to match the native component's RunScript arguments.\n" +
-                                "   3. Copy everything below into the RunScript method.\n" +
+                                "   2. Right-click each input and set 'Type Hint' -> 'No Type Hint'.\n" +
+                                "   3. Create the matching Outputs on the native component.\n" +
+                                "   4. Copy everything below into the RunScript method.\n" +
                                 "*/\n\n";
-                string fullCode = header + _lastCode;
+                string fullCode = header + code;
                 System.Windows.Forms.Clipboard.SetText(fullCode);
-                System.Windows.Forms.MessageBox.Show("Code copied to clipboard!", "Export", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
+                System.Windows.Forms.MessageBox.Show("Code translated for Native C# and copied to clipboard!", "Export", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
